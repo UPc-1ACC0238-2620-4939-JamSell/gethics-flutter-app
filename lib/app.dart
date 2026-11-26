@@ -1,4 +1,3 @@
-import 'package:flutter_localizations/flutter_localizations.dart' show GlobalWidgetsLocalizations;
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -28,11 +27,8 @@ class GethicsApp extends StatelessWidget {
         onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
         debugShowCheckedModeBanner: false,
         theme: buildGethicsTheme(),
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-        ],
+        // Material, Cupertino y Widgets en el idioma de la app (sin el de Cupertino falla en espanol).
+        localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
         supportedLocales: AppLocalizations.supportedLocales,
         initialRoute: dependencies.session.isSignedIn ? Routes.home : Routes.signIn,
         routes: _routes,

@@ -22,5 +22,41 @@
       }
     }
   },
-  "signOut": "Cerrar sesión"
+  "signOut": "Cerrar sesión",
+  "upcomingTitle": "Próximos eventos",
+  "upcomingEmpty": "No hay alertas pendientes.",
+  "unknownAnimal": "Animal sin identificar",
+  "badgeOverdue": "Vencido",
+  "badgeUrgent": "Urgente",
+  "badgeUpcoming": "Próximo",
+  "upcomingDueToday": "Vence hoy",
+  "upcomingDueIn": "{count, plural, =1{Vence mañana} other{Vence en {count} días}}",
+  "@upcomingDueIn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingOverdueBy": "{count, plural, =1{Venció ayer} other{Venció hace {count} días}}",
+  "@upcomingOverdueBy": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingNeedAttention": "{count, plural, =1{1 evento requiere atención} other{{count} eventos requieren atención}}",
+  "@upcomingNeedAttention": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "typeVaccination": "Vacuna",
+  "typeTreatment": "Tratamiento",
+  "typeDisease": "Enfermedad",
+  "typeCheckup": "Chequeo",
+  "typeOther": "Otro"
 }

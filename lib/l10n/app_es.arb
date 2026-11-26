@@ -1,0 +1,26 @@
+{
+  "@@locale": "es",
+  "appTitle": "Gethics",
+  "signInTitle": "Iniciar sesión",
+  "signInSubtitle": "Gestión sanitaria del ganado",
+  "emailLabel": "Correo electrónico",
+  "passwordLabel": "Contraseña",
+  "signInButton": "Ingresar",
+  "signInEmptyFields": "Ingresa tu correo y tu contraseña.",
+  "genericError": "No se pudo completar la solicitud.",
+  "connectionError": "No se pudo conectar con el servidor.",
+  "retry": "Reintentar",
+  "comingSoon": "Disponible próximamente.",
+  "navClients": "Clientes",
+  "navCalendar": "Calendario",
+  "navProfile": "Perfil",
+  "profileGreeting": "Hola, {name}",
+  "@profileGreeting": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "signOut": "Cerrar sesión"
+}

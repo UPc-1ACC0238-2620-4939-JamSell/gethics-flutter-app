@@ -30,5 +30,13 @@
   "typeTreatment": "Treatment",
   "typeDisease": "Disease",
   "typeCheckup": "Checkup",
-  "typeOther": "Other"
+  "typeOther": "Other",
+  "rescheduleAction": "Reschedule",
+  "rescheduleTitle": "Reschedule event",
+  "rescheduleDate": "New date",
+  "rescheduleNotes": "Notes (optional)",
+  "rescheduleConfirm": "Reschedule",
+  "reschedulePastDate": "The new date can't be earlier than today.",
+  "rescheduleError": "The event could not be rescheduled.",
+  "cancel": "Cancel"
 }

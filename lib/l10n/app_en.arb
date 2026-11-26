@@ -1,0 +1,19 @@
+{
+  "@@locale": "en",
+  "appTitle": "Gethics",
+  "signInTitle": "Sign in",
+  "signInSubtitle": "Livestock health management",
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "signInButton": "Sign in",
+  "signInEmptyFields": "Enter your email and password.",
+  "genericError": "The request could not be completed.",
+  "connectionError": "Could not connect to the server.",
+  "retry": "Retry",
+  "comingSoon": "Coming soon.",
+  "navClients": "Clients",
+  "navCalendar": "Calendar",
+  "navProfile": "Profile",
+  "profileGreeting": "Hi, {name}",
+  "signOut": "Sign out"
+}

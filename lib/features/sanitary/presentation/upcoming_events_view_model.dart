@@ -4,11 +4,77 @@ import '../../../core/common/result.dart';
 import '../data/sanitary_repository.dart';
 import '../domain/upcoming_event.dart';
 
-/// US-46: estado de la lista de eventos proximos.
+/// US-47: error a mostrar dentro del dialogo de reprogramacion; la pantalla lo traduce.
+sealed class RescheduleError {
+  const RescheduleError();
+}
+
+final class PastDateRescheduleError extends RescheduleError {
+  const PastDateRescheduleError();
+}
+
+final class ConnectionRescheduleError extends RescheduleError {
+  const ConnectionRescheduleError();
+}
+
+final class ServerRescheduleError extends RescheduleError {
+  const ServerRescheduleError(this.serverMessage);
+
+  final String serverMessage;
+}
+
+/// US-46: estado de la lista de eventos proximos. US-47: reprogramacion de un evento de la lista.
 class UpcomingEventsViewModel extends ChangeNotifier {
-  UpcomingEventsViewModel(this._repository);
+  UpcomingEventsViewModel(this._repository, {DateTime Function()? now}) : _now = now ?? DateTime.now;
 
   final SanitaryRepository _repository;
+  final DateTime Function() _now;
+
+  bool _rescheduling = false;
+  RescheduleError? _rescheduleError;
+
+  bool get rescheduling => _rescheduling;
+  RescheduleError? get rescheduleError => _rescheduleError;
+
+  void clearRescheduleError() {
+    if (_rescheduleError == null) return;
+    _rescheduleError = null;
+    notifyListeners();
+  }
+
+  /// Devuelve true si el backend acepto la nueva fecha (el dialogo se cierra y la lista se recarga). Con error devuelve
+  /// false y deja [rescheduleError]: el dialogo sigue abierto con lo ingresado. Ignora un segundo toque en curso.
+  Future<bool> reschedule(UpcomingEvent event, DateTime newDate, String notes) async {
+    if (_rescheduling) return false;
+    final now = _now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (DateTime(newDate.year, newDate.month, newDate.day).isBefore(today)) {
+      _rescheduleError = const PastDateRescheduleError();
+      notifyListeners();
+      return false;
+    }
+    _rescheduling = true;
+    _rescheduleError = null;
+    notifyListeners();
+    final trimmed = notes.trim();
+    final result = await _repository.rescheduleEvent(
+      animalId: event.animalId,
+      eventId: event.id,
+      scheduledDate: newDate,
+      description: trimmed.isEmpty ? null : trimmed,
+    );
+    _rescheduling = false;
+    switch (result) {
+      case Success():
+        notifyListeners();
+        await load();
+        return true;
+      case Failure(:final message, :final isConnectionError):
+        _rescheduleError = isConnectionError ? const ConnectionRescheduleError() : ServerRescheduleError(message);
+        notifyListeners();
+        return false;
+    }
+  }
 
   bool _loading = false;
   List<UpcomingEvent>? _events;

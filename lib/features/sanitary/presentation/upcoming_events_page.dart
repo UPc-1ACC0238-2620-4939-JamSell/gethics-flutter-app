@@ -44,7 +44,10 @@ class UpcomingEventsPage extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           for (final event in events) ...[
-            _UpcomingEventCard(event: event),
+            _UpcomingEventCard(
+              event: event,
+              onReschedule: viewModel.rescheduling ? null : () => showRescheduleDialog(context, viewModel, event),
+            ),
             const SizedBox(height: 12),
           ],
         ],
@@ -94,9 +97,12 @@ String proximityLabel(AppLocalizations l10n, int daysUntil) {
 }
 
 class _UpcomingEventCard extends StatelessWidget {
-  const _UpcomingEventCard({required this.event});
+  const _UpcomingEventCard({required this.event, required this.onReschedule});
 
   final UpcomingEvent event;
+
+  /// US-47: abre el dialogo de reprogramacion; null mientras otra reprogramacion esta en curso.
+  final VoidCallback? onReschedule;
 
   @override
   Widget build(BuildContext context) {
@@ -149,9 +155,132 @@ class _UpcomingEventCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(event.description!, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
             ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onReschedule,
+                icon: const Icon(Icons.edit_calendar_outlined, size: 18),
+                label: Text(l10n.rescheduleAction),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// US-47: abre el dialogo para reprogramar [event]. Se cierra solo si el backend acepta la nueva fecha.
+Future<void> showRescheduleDialog(BuildContext context, UpcomingEventsViewModel viewModel, UpcomingEvent event) {
+  viewModel.clearRescheduleError();
+  return showDialog<void>(
+    context: context,
+    builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: RescheduleDialog(event: event)),
+  );
+}
+
+/// US-47: nueva fecha (desde hoy; por defecto la actual si no vencio) y notas opcionales (por defecto las actuales).
+/// La fecha y las notas viven en el dialogo, asi que un error del backend no borra lo ingresado.
+class RescheduleDialog extends StatefulWidget {
+  const RescheduleDialog({super.key, required this.event});
+
+  final UpcomingEvent event;
+
+  @override
+  State<RescheduleDialog> createState() => _RescheduleDialogState();
+}
+
+class _RescheduleDialogState extends State<RescheduleDialog> {
+  static const _notesMax = 1000; // mismo limite que valida el backend
+
+  late DateTime _date;
+  late final TextEditingController _notes;
+
+  DateTime get _today {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _date = widget.event.scheduledDate.isBefore(_today) ? _today : widget.event.scheduledDate;
+    _notes = TextEditingController(text: widget.event.description ?? '');
+  }
+
+  @override
+  void dispose() {
+    _notes.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: _today,
+      lastDate: DateTime(_today.year + 5),
+    );
+    if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _confirm(UpcomingEventsViewModel viewModel) async {
+    final navigator = Navigator.of(context);
+    if (await viewModel.reschedule(widget.event, _date, _notes.text)) {
+      navigator.pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final viewModel = context.watch<UpcomingEventsViewModel>();
+    final busy = viewModel.rescheduling;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final error = switch (viewModel.rescheduleError) {
+      null => null,
+      PastDateRescheduleError() => l10n.reschedulePastDate,
+      ConnectionRescheduleError() => l10n.connectionError,
+      ServerRescheduleError(:final serverMessage) => serverMessage.isEmpty ? l10n.rescheduleError : serverMessage,
+    };
+
+    return AlertDialog(
+      title: Text(l10n.rescheduleTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(l10n.rescheduleDate, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 4),
+          OutlinedButton.icon(
+            key: const Key('reschedule-date'),
+            onPressed: busy ? null : _pickDate,
+            icon: const Icon(Icons.calendar_today_outlined, size: 18),
+            label: Text(DateFormat.yMMMMd(locale).format(_date)),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('reschedule-notes'),
+            controller: _notes,
+            enabled: !busy,
+            maxLength: _notesMax,
+            decoration: InputDecoration(labelText: l10n.rescheduleNotes, counterText: ''),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 8),
+            Text(error, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: busy ? null : () => Navigator.of(context).pop(), child: Text(l10n.cancel)),
+        FilledButton(
+          onPressed: busy ? null : () => _confirm(viewModel),
+          child: busy
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(l10n.rescheduleConfirm),
+        ),
+      ],
     );
   }
 }

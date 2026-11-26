@@ -15,5 +15,20 @@
   "navCalendar": "Calendar",
   "navProfile": "Profile",
   "profileGreeting": "Hi, {name}",
-  "signOut": "Sign out"
+  "signOut": "Sign out",
+  "upcomingTitle": "Upcoming events",
+  "upcomingEmpty": "No pending alerts.",
+  "unknownAnimal": "Unidentified animal",
+  "badgeOverdue": "Overdue",
+  "badgeUrgent": "Urgent",
+  "badgeUpcoming": "Upcoming",
+  "upcomingDueToday": "Due today",
+  "upcomingDueIn": "{count, plural, =1{Due tomorrow} other{Due in {count} days}}",
+  "upcomingOverdueBy": "{count, plural, =1{Overdue since yesterday} other{Overdue by {count} days}}",
+  "upcomingNeedAttention": "{count, plural, =1{1 event needs attention} other{{count} events need attention}}",
+  "typeVaccination": "Vaccine",
+  "typeTreatment": "Treatment",
+  "typeDisease": "Disease",
+  "typeCheckup": "Checkup",
+  "typeOther": "Other"
 }

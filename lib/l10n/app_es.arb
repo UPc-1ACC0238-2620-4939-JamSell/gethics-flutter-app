@@ -58,5 +58,13 @@
   "typeTreatment": "Tratamiento",
   "typeDisease": "Enfermedad",
   "typeCheckup": "Chequeo",
-  "typeOther": "Otro"
+  "typeOther": "Otro",
+  "rescheduleAction": "Reprogramar",
+  "rescheduleTitle": "Reprogramar evento",
+  "rescheduleDate": "Nueva fecha",
+  "rescheduleNotes": "Notas (opcional)",
+  "rescheduleConfirm": "Reprogramar",
+  "reschedulePastDate": "La nueva fecha no puede ser anterior a hoy.",
+  "rescheduleError": "No se pudo reprogramar el evento.",
+  "cancel": "Cancelar"
 }

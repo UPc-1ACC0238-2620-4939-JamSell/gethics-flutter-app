@@ -23,6 +23,28 @@ class SanitaryRepository {
     }
   }
 
+  /// US-47: cambia la fecha (y, si se envian, las notas) de un evento programado. [description] null conserva las
+  /// notas actuales. El backend responde 400 (fecha anterior a hoy), 404 o 409 (el evento ya no esta pendiente).
+  Future<Result<void>> rescheduleEvent({
+    required String animalId,
+    required String eventId,
+    required DateTime scheduledDate,
+    String? description,
+  }) async {
+    try {
+      await _api.post('api/v1/animals/$animalId/sanitary-events/$eventId/reschedule', body: {
+        'scheduledDate': _isoDate(scheduledDate),
+        'description': description,
+      });
+      return const Success(null);
+    } on ApiException catch (e) {
+      return Failure(e.message, isConnectionError: e.isConnectionError);
+    }
+  }
+
+  static String _isoDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
   /// animalId -> nombre (o arete si no tiene nombre) de los animales activos.
   Future<Map<String, String>> _animalNames() async {
     try {

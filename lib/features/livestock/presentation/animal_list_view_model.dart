@@ -11,10 +11,12 @@ import 'load_error.dart';
 /// La busqueda espera [debounce] sin teclear antes de consultar; el cambio de estado consulta de inmediato. Una
 /// respuesta que llega tarde (de una busqueda anterior) se descarta.
 class AnimalListViewModel extends ChangeNotifier {
-  AnimalListViewModel(this._repository, {Duration debounce = const Duration(milliseconds: 300)}) : _debounce = debounce;
+  AnimalListViewModel(this._repository, {this.debounce = const Duration(milliseconds: 300)});
 
   final LivestockRepository _repository;
-  final Duration _debounce;
+
+  /// Pausa sin teclear antes de consultar la busqueda.
+  final Duration debounce;
 
   String _query = '';
   AnimalStatus _status = AnimalStatus.active;
@@ -40,7 +42,7 @@ class AnimalListViewModel extends ChangeNotifier {
   void onQueryChanged(String value) {
     _query = value;
     _timer?.cancel();
-    _timer = Timer(_debounce, _fetch);
+    _timer = Timer(debounce, _fetch);
     notifyListeners();
   }
 

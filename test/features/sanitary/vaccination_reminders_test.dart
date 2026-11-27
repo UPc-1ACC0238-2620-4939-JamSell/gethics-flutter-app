@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gethics/app.dart';
 import 'package:gethics/core/common/result.dart';
 import 'package:gethics/core/di/app_dependencies.dart';
+import 'package:gethics/features/sanitary/data/sanitary_sync_service.dart';
 import 'package:gethics/features/sanitary/domain/animal_option.dart';
 import 'package:gethics/features/sanitary/domain/clinical_history.dart';
 import 'package:gethics/features/sanitary/domain/upcoming_event.dart' show SanitaryEventType;
@@ -116,7 +117,7 @@ void main() {
 
       expect(vm.scheduling, isTrue);
       expect(vm.type, SanitaryEventType.vaccination);
-      expect(await vm.submit('  Refuerzo  '), isTrue);
+      expect(await vm.submit('  Refuerzo  '), SanitarySaveResult.sent);
 
       expect(backend.scheduleRequests.single.url.path, '/api/v1/animals/a1/sanitary-events/scheduled');
       expect(jsonDecode(backend.scheduleRequests.single.body),
@@ -128,28 +129,28 @@ void main() {
       final vm = scheduleVm(backend);
 
       vm.selectDate(DateTime(2026, 11, 25));
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
       expect(vm.error, isA<PastDateEventError>());
       expect(backend.scheduleRequests, isEmpty);
 
       vm.selectDate(DateTime(2027, 3, 1));
-      expect(await vm.submit(''), isTrue);
+      expect(await vm.submit(''), SanitarySaveResult.sent);
       expect(jsonDecode(backend.scheduleRequests.single.body)['scheduledDate'], '2027-03-01');
     });
 
     test('sin animal no llama al backend; con error HTTP o de conexion queda el error', () async {
       final backend = FakeBackend();
       final withoutAnimal = scheduleVm(backend, animal: null);
-      expect(await withoutAnimal.submit(''), isFalse);
+      expect(await withoutAnimal.submit(''), isNull);
       expect(withoutAnimal.error, isA<MissingFieldsEventError>());
       expect(backend.scheduleRequests, isEmpty);
 
       final vm = scheduleVm(backend);
       backend.scheduleHandler = (_) => utf8Response('{"message":"Error temporal"}', 500);
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
       expect(vm.error, isA<ServerEventError>().having((e) => e.serverMessage, 'serverMessage', 'Error temporal'));
       backend.scheduleHandler = (_) async => throw const SocketException('sin red');
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
       expect(vm.error, isA<ConnectionEventError>());
     });
 
@@ -170,9 +171,9 @@ void main() {
       final vm = scheduleVm(backend);
 
       final first = vm.submit('');
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
       slow.complete(http.Response('{}', 201));
-      expect(await first, isTrue);
+      expect(await first, SanitarySaveResult.sent);
       expect(backend.scheduleRequests, hasLength(1));
     });
   });
@@ -255,7 +256,7 @@ void main() {
     testWidgets('el formulario de programar vacuna no pide tipo, usa "Fecha programada" y vuelve con true', (tester) async {
       await setSurface(tester);
       final backend = FakeBackend();
-      bool? result;
+      SanitarySaveResult? result;
       await tester.pumpWidget(app(Builder(
         builder: (context) => TextButton(
           onPressed: () async =>
@@ -275,7 +276,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(backend.scheduleRequests.single.url.path, '/api/v1/animals/a1/sanitary-events/scheduled');
-      expect(result, isTrue);
+      expect(result, SanitarySaveResult.sent);
     });
 
     testWidgets('registrar un evento (US-11) sigue pidiendo el tipo y su fecha', (tester) async {

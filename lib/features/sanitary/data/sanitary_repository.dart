@@ -4,12 +4,21 @@ import '../../../core/network/api_exception.dart';
 import '../domain/animal_option.dart';
 import '../domain/clinical_history.dart';
 import '../domain/upcoming_event.dart';
+import 'pending_sanitary_store.dart';
+import 'sanitary_sync_service.dart';
 
 /// Acceso a los Web Services del contexto sanitary.
+///
+/// [offline] (US-35): con el, registrar y programar se guardan en la cola del dispositivo antes de enviarse y, sin
+/// conexion, quedan pendientes (Success(queued)). Sin el (pruebas de otras historias) se envian directo como antes.
 class SanitaryRepository {
-  SanitaryRepository(this._api);
+  SanitaryRepository(this._api, {SanitarySyncService? offline}) : _offline = offline; // ignore: prefer_initializing_formals
 
   final ApiClient _api;
+  final SanitarySyncService? _offline;
+
+  // US-35: ultima lista de animales leida en esta ejecucion y de que usuario es; sin conexion el formulario la usa.
+  ({String userId, List<AnimalOption> animals})? _lastAnimals;
 
   /// US-46: eventos que vencen en los proximos [days] dias, mas los vencidos que siguen pendientes, con el nombre o
   /// arete de su animal. Si no se pueden leer los animales, los eventos se devuelven igual sin nombre.
@@ -47,21 +56,29 @@ class SanitaryRepository {
   /// US-13: programa una vacunacion (evento VACCINATION en estado SCHEDULED). El backend rechaza con 400 una fecha
   /// anterior a hoy. Su job diario genera el recordatorio 3 dias antes de la fecha; hoy ese envio solo queda en el log
   /// del servidor (no hay push real), asi que esta app no promete una notificacion. [clientRequestId] (UUID) hace el
-  /// registro idempotente: el mismo id con los mismos datos devuelve el evento existente (200).
-  Future<Result<void>> scheduleVaccination({
+  /// registro idempotente: el mismo id con los mismos datos devuelve el evento existente (200). Con [_offline], sin
+  /// conexion queda en la cola (US-35).
+  Future<Result<SanitarySaveResult>> scheduleVaccination({
     required String animalId,
     required DateTime scheduledDate,
     String? description,
     required String clientRequestId,
-  }) async {
+  }) =>
+      _create(SanitaryRequest(
+        operation: SanitaryOperation.schedule,
+        animalId: animalId,
+        type: SanitaryEventType.vaccination,
+        date: _isoDate(scheduledDate),
+        description: description,
+        clientRequestId: clientRequestId,
+      ));
+
+  Future<Result<SanitarySaveResult>> _create(SanitaryRequest request) async {
+    final offline = _offline;
+    if (offline != null) return offline.save(request);
     try {
-      await _api.post('api/v1/animals/$animalId/sanitary-events/scheduled', body: {
-        'type': SanitaryEventType.vaccination.name.toUpperCase(),
-        'scheduledDate': _isoDate(scheduledDate),
-        'description': ?description,
-        'clientRequestId': clientRequestId,
-      });
-      return const Success(null);
+      await _api.post(request.path, body: request.body);
+      return const Success(SanitarySaveResult.sent);
     } on ApiException catch (e) {
       return Failure(e.message, isConnectionError: e.isConnectionError);
     }
@@ -100,36 +117,38 @@ class SanitaryRepository {
   /// US-11: registra un evento ya ocurrido (el backend lo guarda COMPLETED). [occurredAt] se envia como fecha a las
   /// 00:00:00, asi que hoy nunca cuenta como futuro. [clientRequestId] (UUID) hace el registro idempotente: repetir el
   /// mismo id con los mismos datos devuelve el evento existente (200) y con otros datos es 409. El backend responde
-  /// 201/200, 400 (campos o fecha posterior a hoy) o 409.
-  Future<Result<void>> registerEvent({
+  /// 201/200, 400 (campos o fecha posterior a hoy) o 409. Con [_offline], sin conexion queda en la cola (US-35).
+  Future<Result<SanitarySaveResult>> registerEvent({
     required String animalId,
     required SanitaryEventType type,
     required DateTime occurredAt,
     String? description,
     required String clientRequestId,
-  }) async {
-    try {
-      await _api.post('api/v1/animals/$animalId/sanitary-events', body: {
-        'type': type.name.toUpperCase(),
-        'occurredAt': '${_isoDate(occurredAt)}T00:00:00',
-        'description': ?description,
-        'clientRequestId': clientRequestId,
-      });
-      return const Success(null);
-    } on ApiException catch (e) {
-      return Failure(e.message, isConnectionError: e.isConnectionError);
-    }
-  }
+  }) =>
+      _create(SanitaryRequest(
+        operation: SanitaryOperation.register,
+        animalId: animalId,
+        type: type,
+        date: '${_isoDate(occurredAt)}T00:00:00',
+        description: description,
+        clientRequestId: clientRequestId,
+      ));
 
-  /// US-11: animales activos para elegir a cual se le registra el evento.
+  /// US-11: animales activos para elegir a cual se le registra el evento. US-35: sin conexion devuelve la ultima lista
+  /// que este mismo usuario leyo en esta ejecucion de la app (no se guarda en disco; eso es US-36).
   Future<Result<List<AnimalOption>>> getAnimals() async {
     try {
       final json = await _api.get('api/v1/animals', query: {'status': 'ACTIVE'}) as Map<String, dynamic>;
-      return Success([
+      final animals = [
         for (final animal in (json['animals'] as List<dynamic>).cast<Map<String, dynamic>>())
           AnimalOption(id: animal['id'] as String, label: _animalLabel(animal)),
-      ]);
+      ];
+      final userId = _offline?.userId;
+      _lastAnimals = userId == null ? null : (userId: userId, animals: animals);
+      return Success(animals);
     } on ApiException catch (e) {
+      final last = _lastAnimals;
+      if (e.isConnectionError && last != null && last.userId == _offline?.userId) return Success(last.animals);
       return Failure(e.message, isConnectionError: e.isConnectionError);
     }
   }

@@ -9,6 +9,7 @@ import 'package:gethics/core/common/uuid.dart';
 import 'package:gethics/core/di/app_dependencies.dart';
 import 'package:gethics/core/network/api_client.dart';
 import 'package:gethics/features/sanitary/data/sanitary_repository.dart';
+import 'package:gethics/features/sanitary/data/sanitary_sync_service.dart';
 import 'package:gethics/features/sanitary/domain/animal_option.dart';
 import 'package:gethics/features/sanitary/domain/upcoming_event.dart';
 import 'package:gethics/features/sanitary/presentation/register_event_page.dart';
@@ -145,7 +146,7 @@ void main() {
 
       final ok = await vm.submit('  Antibiotico  ');
 
-      expect(ok, isTrue);
+      expect(ok, SanitarySaveResult.sent);
       expect(vm.error, isNull);
       expect(vm.submitting, isFalse);
       expect(backend.registerRequests.single.url.path, '/api/v1/animals/a1/sanitary-events');
@@ -161,11 +162,11 @@ void main() {
       final backend = FakeBackend();
 
       final withoutType = viewModel(backend);
-      expect(await withoutType.submit(''), isFalse);
+      expect(await withoutType.submit(''), isNull);
       expect(withoutType.error, isA<MissingFieldsEventError>());
 
       final withoutAnimal = viewModel(backend, animal: null)..selectType(SanitaryEventType.checkup);
-      expect(await withoutAnimal.submit(''), isFalse);
+      expect(await withoutAnimal.submit(''), isNull);
       expect(withoutAnimal.error, isA<MissingFieldsEventError>());
 
       expect(backend.registerRequests, isEmpty);
@@ -176,12 +177,12 @@ void main() {
       final vm = viewModel(backend)..selectType(SanitaryEventType.checkup);
 
       vm.selectDate(DateTime(2026, 11, 27));
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
       expect(vm.error, isA<FutureDateEventError>());
       expect(backend.registerRequests, isEmpty);
 
       vm.selectDate(DateTime(2026, 11, 25));
-      expect(await vm.submit(''), isTrue);
+      expect(await vm.submit(''), SanitarySaveResult.sent);
       expect(jsonDecode(backend.registerRequests.single.body)['occurredAt'], '2026-11-25T00:00:00');
     });
 
@@ -189,11 +190,11 @@ void main() {
       final backend = FakeBackend(register: (_) async => http.Response('{"message":"Error temporal"}', 500));
       final vm = viewModel(backend)..selectType(SanitaryEventType.checkup);
 
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
       expect(vm.error, isA<ServerEventError>().having((e) => e.serverMessage, 'serverMessage', 'Error temporal'));
 
       backend.register = (_) async => throw const SocketException('sin red');
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
       expect(vm.error, isA<ConnectionEventError>());
 
       vm.selectType(SanitaryEventType.disease);
@@ -219,10 +220,10 @@ void main() {
 
       final first = vm.submit('');
       expect(vm.submitting, isTrue);
-      expect(await vm.submit(''), isFalse);
+      expect(await vm.submit(''), isNull);
 
       response.complete(http.Response('{}', 201));
-      expect(await first, isTrue);
+      expect(await first, SanitarySaveResult.sent);
       expect(backend.registerRequests, hasLength(1));
     });
 
@@ -253,7 +254,7 @@ void main() {
   });
 
   group('pantalla', () {
-    Widget host(FakeBackend backend, {AnimalOption? animal, void Function(bool?)? onResult}) => MaterialApp(
+    Widget host(FakeBackend backend, {AnimalOption? animal, void Function(SanitarySaveResult?)? onResult}) => MaterialApp(
           locale: const Locale('es'),
           localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
           supportedLocales: AppLocalizations.supportedLocales,
@@ -296,9 +297,9 @@ void main() {
       expect(backend.registerRequests, isEmpty);
     });
 
-    testWidgets('elegir animal y tipo, registrar y volver con true', (tester) async {
+    testWidgets('elegir animal y tipo, registrar y volver con sent', (tester) async {
       final backend = FakeBackend();
-      bool? result;
+      SanitarySaveResult? result;
       await tester.pumpWidget(host(backend, onResult: (value) => result = value));
       await open(tester);
 
@@ -316,7 +317,7 @@ void main() {
       expect(request.url.path, '/api/v1/animals/a2/sanitary-events');
       expect(jsonDecode(request.body)['type'], 'VACCINATION');
       expect(jsonDecode(request.body)['description'], 'Aftosa');
-      expect(result, isTrue);
+      expect(result, SanitarySaveResult.sent);
       expect(find.text('Registrar evento sanitario'), findsNothing);
     });
 

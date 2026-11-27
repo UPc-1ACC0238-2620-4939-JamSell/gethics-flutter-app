@@ -74,6 +74,7 @@
   "scheduleVaccinationPastDate": "The scheduled date can't be earlier than today.",
   "scheduleVaccinationError": "The vaccination could not be scheduled.",
   "scheduleVaccinationSuccess": "Vaccination scheduled.",
+  "sanitarySavedOffline": "Event saved offline. It will sync when the connection is restored.",
   "completeEventAction": "Mark as applied",
   "completeEventTitle": "Record application",
   "completeEventDate": "Application date",

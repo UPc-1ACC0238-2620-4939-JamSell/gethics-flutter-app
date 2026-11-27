@@ -25,10 +25,14 @@ final class ServerRescheduleError extends RescheduleError {
 
 /// US-46: estado de la lista de eventos proximos. US-47: reprogramacion de un evento de la lista.
 class UpcomingEventsViewModel extends ChangeNotifier {
-  UpcomingEventsViewModel(this._repository, {DateTime Function()? now}) : _now = now ?? DateTime.now;
+  UpcomingEventsViewModel(this._repository, {DateTime Function()? now, this.onRescheduled}) : _now = now ?? DateTime.now;
 
   final SanitaryRepository _repository;
   final DateTime Function() _now;
+
+  /// US-12: se llama tras reprogramar con exito, para que el calendario mensual (que muestra los mismos eventos)
+  /// se recargue: el evento sale del mes original y aparece en el nuevo.
+  final void Function()? onRescheduled;
 
   bool _rescheduling = false;
   RescheduleError? _rescheduleError;
@@ -67,6 +71,7 @@ class UpcomingEventsViewModel extends ChangeNotifier {
     switch (result) {
       case Success():
         notifyListeners();
+        onRescheduled?.call();
         await load();
         return true;
       case Failure(:final message, :final isConnectionError):

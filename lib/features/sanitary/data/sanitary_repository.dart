@@ -81,6 +81,50 @@ class SanitaryRepository {
     }
   }
 
+  /// US-12: eventos programados (SCHEDULED) del mes, en el orden del backend (por fecha). El endpoint no envia
+  /// daysUntil ni overdue: se calculan con [today] para reutilizar el mismo modelo y tarjeta que US-46. [names] es
+  /// animalId -> nombre (ver [getAnimalNames]). El backend responde 400 con un mes fuera de 1-12 o un anio fuera de rango.
+  Future<Result<List<UpcomingEvent>>> getCalendar({
+    required int year,
+    required int month,
+    required DateTime today,
+    Map<String, String> names = const {},
+  }) async {
+    try {
+      final json = await _api.get('api/v1/sanitary-calendar', query: {'year': '$year', 'month': '$month'})
+          as Map<String, dynamic>;
+      final items = ((json['events'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+      return Success([
+        for (final item in items)
+          if ((item['status'] as String? ?? 'SCHEDULED').toUpperCase() == 'SCHEDULED') _toCalendarEvent(item, names, today),
+      ]);
+    } on ApiException catch (e) {
+      return Failure(e.message, isConnectionError: e.isConnectionError);
+    }
+  }
+
+  /// animalId -> nombre (o arete) de los animales activos; vacio si no se pueden leer.
+  Future<Map<String, String>> getAnimalNames() => _animalNames();
+
+  static UpcomingEvent _toCalendarEvent(Map<String, dynamic> json, Map<String, String> names, DateTime today) {
+    final scheduled = DateTime.parse(json['scheduledDate'] as String);
+    // Dias de calendario (en UTC para que el cambio de horario no mueva el resultado).
+    final daysUntil = DateTime.utc(scheduled.year, scheduled.month, scheduled.day)
+        .difference(DateTime.utc(today.year, today.month, today.day))
+        .inDays;
+    final description = (json['description'] as String?)?.trim();
+    return UpcomingEvent(
+      id: json['id'] as String,
+      animalId: json['animalId'] as String,
+      animalLabel: names[json['animalId']],
+      type: SanitaryEventType.fromName(json['type'] as String?),
+      scheduledDate: scheduled,
+      description: description == null || description.isEmpty ? null : description,
+      daysUntil: daysUntil,
+      urgency: urgencyOf(daysUntil, overdue: daysUntil < 0),
+    );
+  }
+
   /// US-14: historial clinico del animal (todos sus eventos, tambien programados y cancelados), en el orden del
   /// backend. Un animal sin eventos responde 200 con la lista vacia; un animalId invalido, 400.
   Future<Result<ClinicalHistory>> getClinicalHistory(String animalId) async {

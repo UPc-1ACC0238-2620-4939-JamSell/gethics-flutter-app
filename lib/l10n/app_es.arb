@@ -86,5 +86,8 @@
   "historyNoDate": "Sin fecha registrada",
   "historyStatusScheduled": "Programado",
   "historyStatusCompleted": "Realizado",
-  "historyStatusCancelled": "Cancelado"
+  "historyStatusCancelled": "Cancelado",
+  "calendarPreviousMonth": "Mes anterior",
+  "calendarNextMonth": "Mes siguiente",
+  "calendarMonthEmpty": "No hay actividades pendientes este mes."
 }

@@ -40,11 +40,11 @@ class UpcomingEventsPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           if (viewModel.needAttention > 0) ...[
-            _AttentionBanner(count: viewModel.needAttention),
+            AttentionBanner(count: viewModel.needAttention),
             const SizedBox(height: 12),
           ],
           for (final event in events) ...[
-            _UpcomingEventCard(
+            UpcomingEventCard(
               event: event,
               onReschedule: viewModel.rescheduling ? null : () => showRescheduleDialog(context, viewModel, event),
             ),
@@ -56,8 +56,8 @@ class UpcomingEventsPage extends StatelessWidget {
   }
 }
 
-class _AttentionBanner extends StatelessWidget {
-  const _AttentionBanner({required this.count});
+class AttentionBanner extends StatelessWidget {
+  const AttentionBanner({super.key, required this.count});
 
   final int count;
 
@@ -96,8 +96,8 @@ String proximityLabel(AppLocalizations l10n, int daysUntil) {
   return l10n.upcomingDueIn(daysUntil);
 }
 
-class _UpcomingEventCard extends StatelessWidget {
-  const _UpcomingEventCard({required this.event, required this.onReschedule});
+class UpcomingEventCard extends StatelessWidget {
+  const UpcomingEventCard({super.key, required this.event, required this.onReschedule});
 
   final UpcomingEvent event;
 

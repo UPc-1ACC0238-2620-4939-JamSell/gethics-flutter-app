@@ -56,14 +56,22 @@ class SanitaryCalendarPage extends StatelessWidget {
     return [
       if (upcoming.needAttention > 0) ...[AttentionBanner(count: upcoming.needAttention), const SizedBox(height: 12)],
       for (final event in events) ...[
-        UpcomingEventCard(event: event, onReschedule: _rescheduleAction(context, upcoming, event)),
+        UpcomingEventCard(
+          event: event,
+          onReschedule: _rescheduleAction(context, upcoming, event),
+          showCancel: true,
+          onCancel: _cancelAction(context, upcoming, event),
+        ),
         const SizedBox(height: 12),
       ],
     ];
   }
 
   VoidCallback? _rescheduleAction(BuildContext context, UpcomingEventsViewModel upcoming, UpcomingEvent event) =>
-      upcoming.rescheduling ? null : () => showRescheduleDialog(context, upcoming, event);
+      upcoming.busy ? null : () => showRescheduleDialog(context, upcoming, event);
+
+  VoidCallback? _cancelAction(BuildContext context, UpcomingEventsViewModel upcoming, UpcomingEvent event) =>
+      upcoming.busy ? null : () => showCancelEventDialog(context, upcoming, event);
 
   List<Widget> _month(
     BuildContext context,
@@ -102,7 +110,12 @@ class SanitaryCalendarPage extends StatelessWidget {
         ));
       }
       children
-        ..add(UpcomingEventCard(event: event, onReschedule: _rescheduleAction(context, upcoming, event)))
+        ..add(UpcomingEventCard(
+          event: event,
+          onReschedule: _rescheduleAction(context, upcoming, event),
+          showCancel: true,
+          onCancel: _cancelAction(context, upcoming, event),
+        ))
         ..add(const SizedBox(height: 12));
     }
     return children;

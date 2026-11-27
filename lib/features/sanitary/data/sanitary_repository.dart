@@ -44,6 +44,18 @@ class SanitaryRepository {
     }
   }
 
+  /// US-33: cancela un evento programado (SCHEDULED -> CANCELLED); el backend no lo borra, queda en el historial
+  /// clinico. La solicitud no lleva cuerpo. Responde 200, 400 (id invalido), 404 (el animal no tiene ese evento) o 409
+  /// (el evento ya no esta programado: completado o cancelado).
+  Future<Result<void>> cancelEvent({required String animalId, required String eventId}) async {
+    try {
+      await _api.post('api/v1/animals/$animalId/sanitary-events/$eventId/cancel');
+      return const Success(null);
+    } on ApiException catch (e) {
+      return Failure(e.message, isConnectionError: e.isConnectionError);
+    }
+  }
+
   /// US-11: registra un evento ya ocurrido (el backend lo guarda COMPLETED). [occurredAt] se envia como fecha a las
   /// 00:00:00, asi que hoy nunca cuenta como futuro. [clientRequestId] (UUID) hace el registro idempotente: repetir el
   /// mismo id con los mismos datos devuelve el evento existente (200) y con otros datos es 409. El backend responde

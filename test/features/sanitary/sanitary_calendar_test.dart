@@ -43,10 +43,43 @@ class FakeBackend {
   int animalCalls = 0;
   final rescheduleRequests = <http.Request>[];
 
+  // US-33: cancelar no borra el evento; sale del calendario y de las alertas y queda CANCELLED en el historial.
+  final cancelled = <String>{};
+  final cancelRequests = <http.Request>[];
+  Future<http.Response>? Function(http.Request)? cancelHandler;
+
   List<String> get requestedMonths => calendarRequests.map((r) => '${r.url.queryParameters['year']}-${r.url.queryParameters['month']}').toList();
 
   Future<http.Response> handle(http.Request request) async {
     final path = request.url.path;
+    if (path.endsWith('/cancel')) {
+      cancelRequests.add(request);
+      final override = cancelHandler?.call(request);
+      if (override != null) return override;
+      final id = path.split('/').reversed.elementAt(1);
+      cancelled.add(id);
+      return http.Response('{"id":"$id","status":"CANCELLED"}', 200);
+    }
+    if (path.endsWith('/clinical-history')) {
+      final animalId = path.split('/').reversed.elementAt(1);
+      return http.Response(
+          jsonEncode({
+            'animalId': animalId,
+            'events': [
+              for (final e in events)
+                if (e['animalId'] == animalId)
+                  {
+                    'id': e['id'],
+                    'type': e['type'],
+                    'status': cancelled.contains(e['id']) ? 'CANCELLED' : 'SCHEDULED',
+                    'occurredAt': null,
+                    'scheduledDate': e['scheduledDate'],
+                    'description': e['description'],
+                  },
+            ],
+          }),
+          200);
+    }
     if (path.endsWith('/reschedule')) {
       rescheduleRequests.add(request);
       final id = path.split('/').reversed.elementAt(1);
@@ -62,7 +95,7 @@ class FakeBackend {
       final prefix = '$year-${month.toString().padLeft(2, '0')}';
       final inMonth = [
         for (final e in events)
-          if ((e['scheduledDate'] as String).startsWith(prefix)) {...e, 'status': 'SCHEDULED'},
+          if ((e['scheduledDate'] as String).startsWith(prefix) && !cancelled.contains(e['id'])) {...e, 'status': 'SCHEDULED'},
       ]..sort((a, b) => (a['scheduledDate'] as String).compareTo(b['scheduledDate'] as String));
       return http.Response(
           jsonEncode({
@@ -78,7 +111,7 @@ class FakeBackend {
       final limit = DateTime(2026, 12, 3);
       final due = [
         for (final e in events)
-          if (!DateTime.parse(e['scheduledDate'] as String).isAfter(limit))
+          if (!DateTime.parse(e['scheduledDate'] as String).isAfter(limit) && !cancelled.contains(e['id']))
             {
               ...e,
               'daysUntil': DateTime.parse(e['scheduledDate'] as String).difference(DateTime(2026, 11, 26)).inDays,
@@ -339,7 +372,7 @@ void main() {
       }
       final repository = backend.repository();
       final calendar = SanitaryCalendarViewModel(repository, now: () => today, debounce: Duration.zero);
-      final upcoming = UpcomingEventsViewModel(repository, now: () => today, onRescheduled: calendar.load);
+      final upcoming = UpcomingEventsViewModel(repository, now: () => today, onEventsChanged: calendar.load);
       await upcoming.load();
       await calendar.load();
       await tester.pumpWidget(MaterialApp(

@@ -61,5 +61,11 @@
   "historyStatusCancelled": "Cancelled",
   "calendarPreviousMonth": "Previous month",
   "calendarNextMonth": "Next month",
-  "calendarMonthEmpty": "No pending activities this month."
+  "calendarMonthEmpty": "No pending activities this month.",
+  "cancelEventAction": "Cancel event",
+  "cancelEventTitle": "Cancel this event?",
+  "cancelEventMessage": "The event will be marked as cancelled and kept in the clinical history.",
+  "cancelEventKeep": "Keep event",
+  "cancelEventError": "The event could not be cancelled.",
+  "cancelEventSuccess": "Event cancelled."
 }

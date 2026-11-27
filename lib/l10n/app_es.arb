@@ -78,5 +78,13 @@
   "registerEventFutureDate": "La fecha del evento no puede ser posterior a hoy.",
   "registerEventError": "No se pudo registrar el evento.",
   "registerEventNoAnimals": "No hay animales registrados.",
-  "registerEventSuccess": "Evento sanitario registrado."
+  "registerEventSuccess": "Evento sanitario registrado.",
+  "historyTitle": "Historial clínico",
+  "historyAction": "Ver historial clínico",
+  "historySelectAnimal": "Selecciona un animal para ver su historial.",
+  "historyEmpty": "Sin registros.",
+  "historyNoDate": "Sin fecha registrada",
+  "historyStatusScheduled": "Programado",
+  "historyStatusCompleted": "Realizado",
+  "historyStatusCancelled": "Cancelado"
 }

@@ -12,10 +12,19 @@ import 'upcoming_events_page.dart' show sanitaryTypeLabel;
 
 /// US-11: ruta del formulario de registro de un evento sanitario; se cierra con true cuando el backend lo registra.
 /// Con [animal] (p. ej. desde el detalle de un animal) el formulario ya trae el animal; sin el, deja elegir uno.
-Route<bool> registerEventRoute(SanitaryRepository repository, {AnimalOption? animal}) {
+Route<bool> registerEventRoute(SanitaryRepository repository, {AnimalOption? animal}) =>
+    _formRoute(repository, animal: animal, scheduleVaccination: false);
+
+/// US-13: ruta del mismo formulario para programar una vacuna (fecha de hoy en adelante); se cierra con true cuando el
+/// backend la programa. Mismo parametro [animal] que [registerEventRoute].
+Route<bool> scheduleVaccinationRoute(SanitaryRepository repository, {AnimalOption? animal}) =>
+    _formRoute(repository, animal: animal, scheduleVaccination: true);
+
+Route<bool> _formRoute(SanitaryRepository repository, {AnimalOption? animal, required bool scheduleVaccination}) {
   return MaterialPageRoute<bool>(
     builder: (_) => ChangeNotifierProvider(
-      create: (_) => RegisterEventViewModel(repository, animal: animal)..loadAnimals(),
+      create: (_) =>
+          RegisterEventViewModel(repository, animal: animal, scheduleVaccination: scheduleVaccination)..loadAnimals(),
       child: const RegisterEventPage(),
     ),
   );
@@ -44,8 +53,9 @@ class _RegisterEventPageState extends State<RegisterEventPage> {
     final picked = await showDatePicker(
       context: context,
       initialDate: viewModel.date,
-      firstDate: DateTime(today.year - 10),
-      lastDate: DateTime(today.year, today.month, today.day), // un evento ya ocurrido no puede ser futuro
+      // Un evento ya ocurrido no puede ser futuro; una vacuna programada no puede ser pasada.
+      firstDate: viewModel.scheduling ? DateTime(today.year, today.month, today.day) : DateTime(today.year - 10),
+      lastDate: viewModel.scheduling ? DateTime(today.year + 5, today.month, today.day) : DateTime(today.year, today.month, today.day),
     );
     if (picked != null) viewModel.selectDate(picked);
   }
@@ -61,7 +71,7 @@ class _RegisterEventPageState extends State<RegisterEventPage> {
     final l10n = AppLocalizations.of(context);
     final viewModel = context.watch<RegisterEventViewModel>();
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.registerEventTitle)),
+      appBar: AppBar(title: Text(viewModel.scheduling ? l10n.scheduleVaccinationTitle : l10n.registerEventTitle)),
       body: _body(context, l10n, viewModel),
     );
   }
@@ -85,8 +95,11 @@ class _RegisterEventPageState extends State<RegisterEventPage> {
     final error = switch (viewModel.error) {
       null || MissingFieldsEventError() => null,
       FutureDateEventError() => l10n.registerEventFutureDate,
+      PastDateEventError() => l10n.scheduleVaccinationPastDate,
       ConnectionEventError() => l10n.connectionError,
-      ServerEventError(:final serverMessage) => serverMessage.isEmpty ? l10n.registerEventError : serverMessage,
+      ServerEventError(:final serverMessage) => serverMessage.isEmpty
+          ? (viewModel.scheduling ? l10n.scheduleVaccinationError : l10n.registerEventError)
+          : serverMessage,
     };
 
     return SafeArea(
@@ -115,7 +128,8 @@ class _RegisterEventPageState extends State<RegisterEventPage> {
               onChanged: busy ? null : viewModel.selectAnimal,
             ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<SanitaryEventType>(
+          if (!viewModel.scheduling)
+            DropdownButtonFormField<SanitaryEventType>(
             key: const Key('register-type'),
             initialValue: viewModel.type,
             isExpanded: true,
@@ -129,8 +143,8 @@ class _RegisterEventPageState extends State<RegisterEventPage> {
             ],
             onChanged: busy ? null : viewModel.selectType,
           ),
-          const SizedBox(height: 16),
-          Text(l10n.registerEventDate, style: Theme.of(context).textTheme.labelMedium),
+          if (!viewModel.scheduling) const SizedBox(height: 16),
+          Text(viewModel.scheduling ? l10n.scheduleVaccinationDate : l10n.registerEventDate, style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 4),
           OutlinedButton.icon(
             key: const Key('register-date'),
@@ -158,7 +172,7 @@ class _RegisterEventPageState extends State<RegisterEventPage> {
             onPressed: busy ? null : () => _submit(viewModel),
             child: busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(l10n.registerEventSubmit),
+                : Text(viewModel.scheduling ? l10n.scheduleVaccinationSubmit : l10n.registerEventSubmit),
           ),
         ],
       ),

@@ -84,7 +84,7 @@ void main() {
       await pumpEventQueue();
 
       expect(ok, isTrue);
-      expect(upcoming.cancelError, isNull);
+      expect(upcoming.actionError, isNull);
       expect(upcoming.busy, isFalse);
       expect(backend.cancelRequests.single.url.path, '/api/v1/animals/a1/sanitary-events/e1/cancel');
       expect(backend.upcomingCalls, upcomingBefore + 1);
@@ -102,12 +102,12 @@ void main() {
 
       backend.cancelHandler = (_) => bytesResponse('{"message":"Solo un evento programado (SCHEDULED) puede cancelarse."}', 409);
       expect(await upcoming.cancelEvent(event), isFalse);
-      expect(upcoming.cancelError, isA<ServerCancelError>()
+      expect(upcoming.actionError, isA<ServerActionError>()
           .having((e) => e.serverMessage, 'serverMessage', 'Solo un evento programado (SCHEDULED) puede cancelarse.'));
 
       backend.cancelHandler = (_) async => throw const SocketException('sin red');
       expect(await upcoming.cancelEvent(event), isFalse);
-      expect(upcoming.cancelError, isA<ConnectionCancelError>());
+      expect(upcoming.actionError, isA<ConnectionActionError>());
 
       expect(upcoming.events!.map((e) => e.id), contains('e1'));
       expect(calendar.events!.map((e) => e.id), contains('e1'));
@@ -115,8 +115,8 @@ void main() {
       expect(backend.calendarRequests.length, monthsBefore);
       expect(upcoming.busy, isFalse); // se puede volver a intentar
 
-      upcoming.clearCancelError();
-      expect(upcoming.cancelError, isNull);
+      upcoming.clearActionError();
+      expect(upcoming.actionError, isNull);
     });
 
     test('una segunda cancelacion o una reprogramacion mientras hay una en curso se ignoran', () async {

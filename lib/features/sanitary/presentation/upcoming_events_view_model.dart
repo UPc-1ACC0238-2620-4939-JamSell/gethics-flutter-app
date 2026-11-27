@@ -24,18 +24,23 @@ final class ServerRescheduleError extends RescheduleError {
 }
 
 /// US-33: error a mostrar en el dialogo de cancelacion; la pantalla lo traduce.
-sealed class CancelError {
-  const CancelError();
+sealed class ActionError {
+  const ActionError();
 }
 
-final class ConnectionCancelError extends CancelError {
-  const ConnectionCancelError();
+final class ConnectionActionError extends ActionError {
+  const ConnectionActionError();
 }
 
-final class ServerCancelError extends CancelError {
-  const ServerCancelError(this.serverMessage);
+final class ServerActionError extends ActionError {
+  const ServerActionError(this.serverMessage);
 
   final String serverMessage;
+}
+
+/// US-13: la fecha de aplicacion no puede ser posterior a hoy.
+final class FutureDateActionError extends ActionError {
+  const FutureDateActionError();
 }
 
 /// US-46: estado de la lista de eventos proximos. US-47: reprogramacion y US-33: cancelacion de un evento de la lista
@@ -54,28 +59,60 @@ class UpcomingEventsViewModel extends ChangeNotifier {
   RescheduleError? _rescheduleError;
 
   bool _cancelling = false;
-  CancelError? _cancelError;
+  bool _completing = false;
+  ActionError? _actionError;
 
   bool get rescheduling => _rescheduling;
   bool get cancelling => _cancelling;
-  CancelError? get cancelError => _cancelError;
+  bool get completing => _completing;
+  ActionError? get actionError => _actionError;
 
-  /// Hay una reprogramacion o una cancelacion en curso: las acciones sobre eventos se deshabilitan hasta que termine.
-  bool get busy => _rescheduling || _cancelling;
+  /// Hay una reprogramacion, cancelacion o aplicacion en curso: las acciones sobre eventos se deshabilitan hasta que termine.
+  bool get busy => _rescheduling || _cancelling || _completing;
 
-  void clearCancelError() {
-    if (_cancelError == null) return;
-    _cancelError = null;
+  void clearActionError() {
+    if (_actionError == null) return;
+    _actionError = null;
     notifyListeners();
   }
 
+  /// US-13: registra como aplicada (SCHEDULED -> COMPLETED) una vacuna programada. Es el mismo evento: el backend
+  /// conserva su fecha programada, fija la de aplicacion y deja de generar o reintentar su recordatorio. Devuelve true
+  /// si lo acepto (el dialogo se cierra y las listas se recargan: el evento ya no esta pendiente). No admite una fecha
+  /// de aplicacion posterior a hoy. Ignora la solicitud si hay otra accion en curso.
+  Future<bool> completeEvent(UpcomingEvent event, DateTime appliedOn) async {
+    if (busy) return false;
+    final now = _now();
+    if (DateTime(appliedOn.year, appliedOn.month, appliedOn.day).isAfter(DateTime(now.year, now.month, now.day))) {
+      _actionError = const FutureDateActionError();
+      notifyListeners();
+      return false;
+    }
+    _completing = true;
+    _actionError = null;
+    notifyListeners();
+    final result = await _repository.completeEvent(animalId: event.animalId, eventId: event.id, occurredAt: appliedOn);
+    _completing = false;
+    switch (result) {
+      case Success():
+        notifyListeners();
+        onEventsChanged?.call();
+        await load();
+        return true;
+      case Failure(:final message, :final isConnectionError):
+        _actionError = isConnectionError ? const ConnectionActionError() : ServerActionError(message);
+        notifyListeners();
+        return false;
+    }
+  }
+
   /// US-33: devuelve true si el backend cancelo el evento (el dialogo se cierra y las listas se recargan). Con error
-  /// devuelve false y deja [cancelError]: el evento sigue en las listas, que solo cambian tras una respuesta exitosa.
+  /// devuelve false y deja [actionError]: el evento sigue en las listas, que solo cambian tras una respuesta exitosa.
   /// Ignora una segunda solicitud mientras otra reprogramacion o cancelacion esta en curso.
   Future<bool> cancelEvent(UpcomingEvent event) async {
     if (busy) return false;
     _cancelling = true;
-    _cancelError = null;
+    _actionError = null;
     notifyListeners();
     final result = await _repository.cancelEvent(animalId: event.animalId, eventId: event.id);
     _cancelling = false;
@@ -86,7 +123,7 @@ class UpcomingEventsViewModel extends ChangeNotifier {
         await load();
         return true;
       case Failure(:final message, :final isConnectionError):
-        _cancelError = isConnectionError ? const ConnectionCancelError() : ServerCancelError(message);
+        _actionError = isConnectionError ? const ConnectionActionError() : ServerActionError(message);
         notifyListeners();
         return false;
     }

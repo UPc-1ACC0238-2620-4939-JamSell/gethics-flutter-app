@@ -44,6 +44,47 @@ class SanitaryRepository {
     }
   }
 
+  /// US-13: programa una vacunacion (evento VACCINATION en estado SCHEDULED). El backend rechaza con 400 una fecha
+  /// anterior a hoy. Su job diario genera el recordatorio 3 dias antes de la fecha; hoy ese envio solo queda en el log
+  /// del servidor (no hay push real), asi que esta app no promete una notificacion. [clientRequestId] (UUID) hace el
+  /// registro idempotente: el mismo id con los mismos datos devuelve el evento existente (200).
+  Future<Result<void>> scheduleVaccination({
+    required String animalId,
+    required DateTime scheduledDate,
+    String? description,
+    required String clientRequestId,
+  }) async {
+    try {
+      await _api.post('api/v1/animals/$animalId/sanitary-events/scheduled', body: {
+        'type': SanitaryEventType.vaccination.name.toUpperCase(),
+        'scheduledDate': _isoDate(scheduledDate),
+        'description': ?description,
+        'clientRequestId': clientRequestId,
+      });
+      return const Success(null);
+    } on ApiException catch (e) {
+      return Failure(e.message, isConnectionError: e.isConnectionError);
+    }
+  }
+
+  /// US-13: registra como aplicado el MISMO evento programado (SCHEDULED -> COMPLETED); no crea otro. [occurredAt] va
+  /// a las 00:00:00 como en US-11 y no puede ser posterior a hoy (400). Sin description el backend conserva la de la
+  /// programacion. Responde 404 (el animal no tiene ese evento) o 409 (ya no esta programado).
+  Future<Result<void>> completeEvent({
+    required String animalId,
+    required String eventId,
+    required DateTime occurredAt,
+  }) async {
+    try {
+      await _api.post('api/v1/animals/$animalId/sanitary-events/$eventId/complete', body: {
+        'occurredAt': '${_isoDate(occurredAt)}T00:00:00',
+      });
+      return const Success(null);
+    } on ApiException catch (e) {
+      return Failure(e.message, isConnectionError: e.isConnectionError);
+    }
+  }
+
   /// US-33: cancela un evento programado (SCHEDULED -> CANCELLED); el backend no lo borra, queda en el historial
   /// clinico. La solicitud no lleva cuerpo. Responde 200, 400 (id invalido), 404 (el animal no tiene ese evento) o 409
   /// (el evento ya no esta programado: completado o cancelado).

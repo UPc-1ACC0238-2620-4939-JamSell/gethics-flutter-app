@@ -20,6 +20,11 @@ final class FutureDateEventError extends RegisterEventError {
   const FutureDateEventError();
 }
 
+/// US-13: una vacuna no se puede programar para una fecha anterior a hoy.
+final class PastDateEventError extends RegisterEventError {
+  const PastDateEventError();
+}
+
 final class ConnectionEventError extends RegisterEventError {
   const ConnectionEventError();
 }
@@ -36,11 +41,14 @@ class RegisterEventViewModel extends ChangeNotifier {
   RegisterEventViewModel(
     this._repository, {
     AnimalOption? animal,
+    bool scheduleVaccination = false,
     DateTime Function()? now,
     String Function()? newRequestId,
   })  : _now = now ?? DateTime.now,
         _newRequestId = newRequestId ?? newUuidV4,
         _animal = animal,
+        scheduling = scheduleVaccination,
+        _type = scheduleVaccination ? SanitaryEventType.vaccination : null,
         lockedAnimal = animal != null {
     final current = _now();
     _date = DateTime(current.year, current.month, current.day);
@@ -49,6 +57,10 @@ class RegisterEventViewModel extends ChangeNotifier {
   final SanitaryRepository _repository;
   final DateTime Function() _now;
   final String Function() _newRequestId;
+
+  /// US-13: el formulario programa una vacuna (tipo fijo, fecha de hoy en adelante) en lugar de registrar un evento ya
+  /// ocurrido (US-11, fecha de hoy hacia atras).
+  final bool scheduling;
 
   /// true si el animal vino preseleccionado y no se puede cambiar.
   final bool lockedAnimal;
@@ -134,8 +146,9 @@ class RegisterEventViewModel extends ChangeNotifier {
       return false;
     }
     final current = _now();
-    if (_date.isAfter(DateTime(current.year, current.month, current.day))) {
-      _error = const FutureDateEventError();
+    final today = DateTime(current.year, current.month, current.day);
+    if (scheduling ? _date.isBefore(today) : _date.isAfter(today)) {
+      _error = scheduling ? const PastDateEventError() : const FutureDateEventError();
       notifyListeners();
       return false;
     }
@@ -148,13 +161,20 @@ class RegisterEventViewModel extends ChangeNotifier {
     _submitting = true;
     _error = null;
     notifyListeners();
-    final result = await _repository.registerEvent(
-      animalId: animal.id,
-      type: type,
-      occurredAt: _date,
-      description: description,
-      clientRequestId: _requestId!,
-    );
+    final result = scheduling
+        ? await _repository.scheduleVaccination(
+            animalId: animal.id,
+            scheduledDate: _date,
+            description: description,
+            clientRequestId: _requestId!,
+          )
+        : await _repository.registerEvent(
+            animalId: animal.id,
+            type: type,
+            occurredAt: _date,
+            description: description,
+            clientRequestId: _requestId!,
+          );
     _submitting = false;
     switch (result) {
       case Success():

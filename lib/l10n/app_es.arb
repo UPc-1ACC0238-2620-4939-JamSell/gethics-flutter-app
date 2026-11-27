@@ -102,6 +102,7 @@
   "scheduleVaccinationPastDate": "La fecha programada no puede ser anterior a hoy.",
   "scheduleVaccinationError": "No se pudo programar la vacuna.",
   "scheduleVaccinationSuccess": "Vacuna programada.",
+  "sanitarySavedOffline": "Evento guardado sin conexión. Se sincronizará cuando vuelva la conexión.",
   "completeEventAction": "Marcar como aplicada",
   "completeEventTitle": "Registrar aplicación",
   "completeEventDate": "Fecha de aplicación",

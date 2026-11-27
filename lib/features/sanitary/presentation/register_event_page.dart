@@ -5,23 +5,34 @@ import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../data/sanitary_repository.dart';
+import '../data/sanitary_sync_service.dart';
 import '../domain/animal_option.dart';
 import '../domain/upcoming_event.dart';
 import 'register_event_view_model.dart';
 import 'upcoming_events_page.dart' show sanitaryTypeLabel;
 
-/// US-11: ruta del formulario de registro de un evento sanitario; se cierra con true cuando el backend lo registra.
+/// US-11: ruta del formulario de registro de un evento sanitario. Se cierra con [SanitarySaveResult.sent] cuando el
+/// backend lo registra o [SanitarySaveResult.queued] si quedo guardado sin conexion (US-35); null si se sale sin guardar.
 /// Con [animal] (p. ej. desde el detalle de un animal) el formulario ya trae el animal; sin el, deja elegir uno.
-Route<bool> registerEventRoute(SanitaryRepository repository, {AnimalOption? animal}) =>
+Route<SanitarySaveResult> registerEventRoute(SanitaryRepository repository, {AnimalOption? animal}) =>
     _formRoute(repository, animal: animal, scheduleVaccination: false);
 
-/// US-13: ruta del mismo formulario para programar una vacuna (fecha de hoy en adelante); se cierra con true cuando el
-/// backend la programa. Mismo parametro [animal] que [registerEventRoute].
-Route<bool> scheduleVaccinationRoute(SanitaryRepository repository, {AnimalOption? animal}) =>
+/// US-13: ruta del mismo formulario para programar una vacuna (fecha de hoy en adelante). Mismo resultado y parametro
+/// [animal] que [registerEventRoute].
+Route<SanitarySaveResult> scheduleVaccinationRoute(SanitaryRepository repository, {AnimalOption? animal}) =>
     _formRoute(repository, animal: animal, scheduleVaccination: true);
 
-Route<bool> _formRoute(SanitaryRepository repository, {AnimalOption? animal, required bool scheduleVaccination}) {
-  return MaterialPageRoute<bool>(
+/// Aviso a mostrar al volver del formulario: [sentMessage] si el backend lo confirmo, el de guardado sin conexion si
+/// quedo en la cola, null si no se guardo nada.
+String? saveResultMessage(AppLocalizations l10n, SanitarySaveResult? result, {required String sentMessage}) =>
+    switch (result) {
+      SanitarySaveResult.sent => sentMessage,
+      SanitarySaveResult.queued => l10n.sanitarySavedOffline,
+      null => null,
+    };
+
+Route<SanitarySaveResult> _formRoute(SanitaryRepository repository, {AnimalOption? animal, required bool scheduleVaccination}) {
+  return MaterialPageRoute<SanitarySaveResult>(
     builder: (_) => ChangeNotifierProvider(
       create: (_) =>
           RegisterEventViewModel(repository, animal: animal, scheduleVaccination: scheduleVaccination)..loadAnimals(),
@@ -63,7 +74,8 @@ class _RegisterEventPageState extends State<RegisterEventPage> {
   Future<void> _submit(RegisterEventViewModel viewModel) async {
     FocusScope.of(context).unfocus();
     final navigator = Navigator.of(context);
-    if (await viewModel.submit(_notes.text)) navigator.pop(true);
+    final result = await viewModel.submit(_notes.text);
+    if (result != null) navigator.pop(result);
   }
 
   @override

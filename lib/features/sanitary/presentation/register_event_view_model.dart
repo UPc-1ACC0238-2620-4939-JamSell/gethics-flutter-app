@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/common/result.dart';
 import '../../../core/common/uuid.dart';
 import '../data/sanitary_repository.dart';
+import '../data/sanitary_sync_service.dart';
 import '../domain/animal_option.dart';
 import '../domain/upcoming_event.dart';
 
@@ -134,23 +135,25 @@ class RegisterEventViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Devuelve true si el backend registro el evento (la pantalla se cierra). Con error devuelve false y deja [error]:
-  /// el formulario sigue abierto con lo ingresado. Ignora un segundo toque mientras hay un envio en curso.
-  Future<bool> submit(String notes) async {
-    if (_submitting) return false;
+  /// Devuelve [SanitarySaveResult.sent] si el backend registro el evento o [SanitarySaveResult.queued] si quedo guardado
+  /// en el dispositivo para enviarse cuando vuelva la conexion (US-35); en ambos casos la pantalla se cierra. Con error
+  /// devuelve null y deja [error]: el formulario sigue abierto con lo ingresado. Ignora un segundo toque mientras hay un
+  /// envio en curso.
+  Future<SanitarySaveResult?> submit(String notes) async {
+    if (_submitting) return null;
     final animal = _animal;
     final type = _type;
     if (animal == null || type == null) {
       _error = const MissingFieldsEventError();
       notifyListeners();
-      return false;
+      return null;
     }
     final current = _now();
     final today = DateTime(current.year, current.month, current.day);
     if (scheduling ? _date.isBefore(today) : _date.isAfter(today)) {
       _error = scheduling ? const PastDateEventError() : const FutureDateEventError();
       notifyListeners();
-      return false;
+      return null;
     }
     final description = notes.trim().isEmpty ? null : notes.trim();
     final payload = '${animal.id}|${type.name}|$_date|$description';
@@ -177,13 +180,13 @@ class RegisterEventViewModel extends ChangeNotifier {
           );
     _submitting = false;
     switch (result) {
-      case Success():
+      case Success(:final data):
         notifyListeners();
-        return true;
+        return data;
       case Failure(:final message, :final isConnectionError):
         _error = isConnectionError ? const ConnectionEventError() : ServerEventError(message);
         notifyListeners();
-        return false;
+        return null;
     }
   }
 }

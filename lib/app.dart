@@ -40,12 +40,17 @@ class GethicsApp extends StatelessWidget {
         Routes.signIn: (context) => ChangeNotifierProvider(
               create: (_) => SignInViewModel(dependencies.authRepository),
               child: SignInPage(
-                onSignedIn: () => Navigator.of(context).pushReplacementNamed(Routes.home),
+                onSignedIn: () {
+                  dependencies.sanitarySync?.sync(); // US-35: envia lo que este usuario dejo pendiente
+                  Navigator.of(context).pushReplacementNamed(Routes.home);
+                },
               ),
             ),
         Routes.home: (context) => VetHomePage(
               userName: dependencies.session.name ?? '',
               onSignOut: () async {
+                // US-35: las operaciones pendientes se conservan y no se envian con la sesion de otro usuario.
+                dependencies.sanitarySync?.suspend();
                 await dependencies.authRepository.signOut();
                 if (context.mounted) {
                   Navigator.of(context).pushNamedAndRemoveUntil(Routes.signIn, (_) => false);

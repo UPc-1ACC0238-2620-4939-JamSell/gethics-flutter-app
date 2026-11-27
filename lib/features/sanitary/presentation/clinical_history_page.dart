@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../data/sanitary_repository.dart';
+import '../data/sanitary_sync_service.dart';
 import '../domain/animal_option.dart';
 import '../domain/clinical_history.dart';
 import 'clinical_history_view_model.dart';
@@ -33,12 +34,12 @@ class ClinicalHistoryPage extends StatelessWidget {
 
   Future<void> _registerEvent(BuildContext context, ClinicalHistoryViewModel viewModel) async {
     final messenger = ScaffoldMessenger.of(context);
-    final message = AppLocalizations.of(context).registerEventSuccess;
-    final saved = await Navigator.of(context).push(registerEventRoute(repository, animal: viewModel.animal));
-    if (saved == true) {
-      messenger.showSnackBar(SnackBar(content: Text(message)));
-      await viewModel.load(); // el evento recien registrado ya aparece en el historial
-    }
+    final l10n = AppLocalizations.of(context);
+    final result = await Navigator.of(context).push(registerEventRoute(repository, animal: viewModel.animal));
+    final message = saveResultMessage(l10n, result, sentMessage: l10n.registerEventSuccess);
+    if (message != null) messenger.showSnackBar(SnackBar(content: Text(message)));
+    // Solo uno confirmado por el backend aparece en el historial; uno guardado sin conexion aun no esta en el servidor.
+    if (result == SanitarySaveResult.sent) await viewModel.load();
   }
 
   @override

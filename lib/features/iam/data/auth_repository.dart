@@ -22,7 +22,12 @@ class AuthRepository {
         email: userJson['email'] as String? ?? email.trim(),
         role: Role.fromName(userJson['role'] as String?),
       );
-      await _session.save(token: json['token'] as String, role: user.role.name.toUpperCase(), name: user.name);
+      await _session.save(
+        token: json['token'] as String,
+        userId: '${user.id}',
+        role: user.role.name.toUpperCase(),
+        name: user.name,
+      );
       return Success(user);
     } on ApiException catch (e) {
       return Failure(e.message, isConnectionError: e.isConnectionError);

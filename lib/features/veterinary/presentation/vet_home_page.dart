@@ -7,6 +7,7 @@ import '../../../shared/widgets/state_views.dart';
 import '../../livestock/presentation/animal_detail_page.dart';
 import '../../livestock/presentation/animal_list_page.dart';
 import '../../livestock/presentation/animal_list_view_model.dart';
+import '../../sanitary/data/sanitary_sync_service.dart';
 import '../../sanitary/presentation/clinical_history_page.dart';
 import '../../sanitary/presentation/register_event_page.dart';
 import '../../sanitary/presentation/sanitary_calendar_page.dart';
@@ -69,18 +70,24 @@ class _VetHomePageState extends State<VetHomePage> {
   }
 
   // US-11: formulario de registro; sin detalle de animal todavia, el formulario deja elegir el animal.
+  // US-35: sin conexion el formulario se cierra con queued y se avisa que se sincronizara despues.
   Future<void> _registerEvent() async {
-    final saved = await Navigator.of(context).push(registerEventRoute(context.read<AppDependencies>().sanitaryRepository));
-    if (saved == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).registerEventSuccess)));
-    }
+    final result = await Navigator.of(context).push(registerEventRoute(context.read<AppDependencies>().sanitaryRepository));
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final message = saveResultMessage(l10n, result, sentMessage: l10n.registerEventSuccess);
+    if (message != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // US-13: programa una vacuna; el evento nuevo aparece en el calendario y en las alertas, asi que se recargan.
+  // US-13: programa una vacuna; el evento nuevo aparece en el calendario y en las alertas, asi que se recargan. Una
+  // guardada sin conexion (US-35) aun no esta en el backend: no se recarga nada.
   Future<void> _scheduleVaccination() async {
-    final saved = await Navigator.of(context).push(scheduleVaccinationRoute(context.read<AppDependencies>().sanitaryRepository));
-    if (saved == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).scheduleVaccinationSuccess)));
+    final result = await Navigator.of(context).push(scheduleVaccinationRoute(context.read<AppDependencies>().sanitaryRepository));
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final message = saveResultMessage(l10n, result, sentMessage: l10n.scheduleVaccinationSuccess);
+    if (message != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    if (result == SanitarySaveResult.sent) {
       _upcoming.load();
       _calendar.load();
     }

@@ -89,5 +89,58 @@
   "historyStatusCancelled": "Cancelado",
   "calendarPreviousMonth": "Mes anterior",
   "calendarNextMonth": "Mes siguiente",
-  "calendarMonthEmpty": "No hay actividades pendientes este mes."
+  "calendarMonthEmpty": "No hay actividades pendientes este mes.",
+  "navAnimals": "Animales",
+  "animalsSearchHint": "Buscar por código, nombre o raza",
+  "animalsSearchClear": "Borrar búsqueda",
+  "animalsClearFilters": "Limpiar filtros",
+  "animalsNoResults": "Sin resultados.",
+  "animalsNone": "No hay animales registrados.",
+  "filterActive": "Activos",
+  "filterSold": "Vendidos",
+  "filterDeceased": "Fallecidos",
+  "filterInactive": "Inactivos",
+  "animalStatusActive": "Activo",
+  "animalStatusSold": "Vendido",
+  "animalStatusDeceased": "Fallecido",
+  "animalStatusInactive": "Inactivo",
+  "animalDetailTitle": "Detalle del animal",
+  "animalBreed": "Raza",
+  "animalAge": "Edad",
+  "animalGender": "Género",
+  "animalBirthDate": "Nacimiento",
+  "animalWeight": "Peso",
+  "animalQr": "Código QR",
+  "animalStatus": "Estado",
+  "animalFarm": "Granja",
+  "animalNoFarm": "Sin granja asignada",
+  "animalSexMale": "Macho",
+  "animalSexFemale": "Hembra",
+  "animalSexUnspecified": "Sin especificar",
+  "animalWeightValue": "{kg} kg",
+  "@animalWeightValue": {
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      }
+    }
+  },
+  "animalAgeYears": "{count, plural, =1{1 año} other{{count} años}}",
+  "@animalAgeYears": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "animalAgeMonths": "{count, plural, =1{1 mes} other{{count} meses}}",
+  "@animalAgeMonths": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "animalAgeLessThanMonth": "Menos de 1 mes",
+  "animalViewHistory": "Ver historial clínico"
 }

@@ -4,13 +4,16 @@ import 'package:provider/provider.dart';
 import '../../../core/di/app_dependencies.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../livestock/presentation/animal_detail_page.dart';
+import '../../livestock/presentation/animal_list_page.dart';
+import '../../livestock/presentation/animal_list_view_model.dart';
 import '../../sanitary/presentation/clinical_history_page.dart';
 import '../../sanitary/presentation/register_event_page.dart';
 import '../../sanitary/presentation/sanitary_calendar_page.dart';
 import '../../sanitary/presentation/sanitary_calendar_view_model.dart';
 import '../../sanitary/presentation/upcoming_events_view_model.dart';
 
-/// Inicio del flujo veterinario: navegacion inferior con Clientes, Calendario y Perfil. Las pestanas sin historia
+/// Inicio del flujo veterinario: navegacion inferior con Clientes, Calendario, Animales y Perfil. Las pestanas sin historia
 /// implementada muestran un aviso; cada historia de usuario reemplaza su pestana por la pantalla real.
 class VetHomePage extends StatefulWidget {
   const VetHomePage({super.key, required this.userName, required this.onSignOut});
@@ -30,10 +33,15 @@ class _VetHomePageState extends State<VetHomePage> {
   late final SanitaryCalendarViewModel _calendar;
   bool _upcomingLoaded = false;
 
+  // US-42: listado de animales; se crea una vez para conservar busqueda y filtros, y carga al abrir Animales.
+  late final AnimalListViewModel _animals;
+  bool _animalsLoaded = false;
+
   @override
   void initState() {
     super.initState();
     final repository = context.read<AppDependencies>().sanitaryRepository;
+    _animals = AnimalListViewModel(context.read<AppDependencies>().livestockRepository);
     _calendar = SanitaryCalendarViewModel(repository);
     // Reprogramar mueve el evento de mes: el calendario mensual se recarga junto con las alertas.
     _upcoming = UpcomingEventsViewModel(repository, onRescheduled: _calendar.load);
@@ -43,6 +51,7 @@ class _VetHomePageState extends State<VetHomePage> {
   void dispose() {
     _upcoming.dispose();
     _calendar.dispose();
+    _animals.dispose();
     super.dispose();
   }
 
@@ -52,6 +61,10 @@ class _VetHomePageState extends State<VetHomePage> {
       _upcomingLoaded = true;
       _upcoming.load();
       _calendar.load();
+    }
+    if (index == 2 && !_animalsLoaded) {
+      _animalsLoaded = true;
+      _animals.load();
     }
   }
 
@@ -66,10 +79,16 @@ class _VetHomePageState extends State<VetHomePage> {
   // US-14: historial clinico; sin detalle de animal todavia, la pantalla deja elegir el animal.
   void _openHistory() => Navigator.of(context).push(clinicalHistoryRoute(context.read<AppDependencies>().sanitaryRepository));
 
+  // US-43: ficha del animal elegido en el listado, con su granja y el acceso a su historial clinico.
+  void _openAnimal(String animalId) {
+    final dependencies = context.read<AppDependencies>();
+    Navigator.of(context).push(animalDetailRoute(dependencies.livestockRepository, dependencies.sanitaryRepository, animalId));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final titles = [l10n.navClients, l10n.navCalendar, l10n.navProfile];
+    final titles = [l10n.navClients, l10n.navCalendar, l10n.navAnimals, l10n.navProfile];
     final body = switch (_tab) {
       1 => MultiProvider(
           providers: [
@@ -78,7 +97,8 @@ class _VetHomePageState extends State<VetHomePage> {
           ],
           child: const SanitaryCalendarPage(),
         ),
-      2 => _ProfileTab(userName: widget.userName, onSignOut: widget.onSignOut),
+      2 => ChangeNotifierProvider.value(value: _animals, child: AnimalListPage(onOpenAnimal: _openAnimal)),
+      3 => _ProfileTab(userName: widget.userName, onSignOut: widget.onSignOut),
       _ => EmptyView(message: l10n.comingSoon),
     };
     return Scaffold(
@@ -102,6 +122,7 @@ class _VetHomePageState extends State<VetHomePage> {
         destinations: [
           NavigationDestination(icon: const Icon(Icons.people_outline), label: l10n.navClients),
           NavigationDestination(icon: const Icon(Icons.calendar_month_outlined), label: l10n.navCalendar),
+          NavigationDestination(icon: const Icon(Icons.pets_outlined), label: l10n.navAnimals),
           NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
         ],
       ),

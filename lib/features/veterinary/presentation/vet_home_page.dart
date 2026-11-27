@@ -44,7 +44,7 @@ class _VetHomePageState extends State<VetHomePage> {
     _animals = AnimalListViewModel(context.read<AppDependencies>().livestockRepository);
     _calendar = SanitaryCalendarViewModel(repository);
     // Reprogramar mueve el evento de mes: el calendario mensual se recarga junto con las alertas.
-    _upcoming = UpcomingEventsViewModel(repository, onRescheduled: _calendar.load);
+    _upcoming = UpcomingEventsViewModel(repository, onEventsChanged: _calendar.load);
   }
 
   @override

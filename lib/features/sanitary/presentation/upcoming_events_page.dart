@@ -97,12 +97,18 @@ String proximityLabel(AppLocalizations l10n, int daysUntil) {
 }
 
 class UpcomingEventCard extends StatelessWidget {
-  const UpcomingEventCard({super.key, required this.event, required this.onReschedule});
+  const UpcomingEventCard({super.key, required this.event, required this.onReschedule, this.showCancel = false, this.onCancel});
 
   final UpcomingEvent event;
 
   /// US-47: abre el dialogo de reprogramacion; null mientras otra reprogramacion esta en curso.
   final VoidCallback? onReschedule;
+
+  /// US-33: la tarjeta ofrece cancelar el evento (la pantalla de solo alertas no lo hace).
+  final bool showCancel;
+
+  /// US-33: abre la confirmacion para cancelar el evento; null mientras hay otra accion en curso.
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -155,12 +161,27 @@ class UpcomingEventCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(event.description!, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
             ],
+            // Wrap: con dos acciones y texto grande o pantalla angosta, la segunda baja de linea en vez de desbordar.
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onReschedule,
-                icon: const Icon(Icons.edit_calendar_outlined, size: 18),
-                label: Text(l10n.rescheduleAction),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: onReschedule,
+                    icon: const Icon(Icons.edit_calendar_outlined, size: 18),
+                    label: Text(l10n.rescheduleAction),
+                  ),
+                  if (showCancel)
+                    TextButton.icon(
+                      key: const Key('cancel-event'),
+                      onPressed: onCancel,
+                      style: TextButton.styleFrom(foregroundColor: scheme.error),
+                      icon: const Icon(Icons.event_busy_outlined, size: 18),
+                      label: Text(l10n.cancelEventAction),
+                    ),
+                ],
               ),
             ),
           ],
@@ -282,5 +303,86 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
         ),
       ],
     );
+  }
+}
+
+/// US-33: confirmacion para cancelar [event]. La accion destructiva (cancelar el evento) y la de conservarlo tienen
+/// textos distintos y distintos del "Cancelar" que suele cerrar un dialogo. Se cierra solo si el backend cancela; el
+/// aviso de exito se muestra en la pantalla de origen.
+Future<void> showCancelEventDialog(BuildContext context, UpcomingEventsViewModel viewModel, UpcomingEvent event) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final successMessage = AppLocalizations.of(context).cancelEventSuccess;
+  viewModel.clearCancelError();
+  final cancelled = await showDialog<bool>(
+    context: context,
+    builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: CancelEventDialog(event: event)),
+  );
+  if (cancelled == true) messenger.showSnackBar(SnackBar(content: Text(successMessage)));
+}
+
+class CancelEventDialog extends StatelessWidget {
+  const CancelEventDialog({super.key, required this.event});
+
+  final UpcomingEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final viewModel = context.watch<UpcomingEventsViewModel>();
+    final busy = viewModel.busy;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final error = switch (viewModel.cancelError) {
+      null => null,
+      ConnectionCancelError() => l10n.connectionError,
+      ServerCancelError(:final serverMessage) => serverMessage.isEmpty ? l10n.cancelEventError : serverMessage,
+    };
+
+    // Mientras se envia no se puede cerrar tocando fuera: el resultado se perderia.
+    return PopScope(
+      canPop: !busy,
+      child: AlertDialog(
+        title: Text(l10n.cancelEventTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${sanitaryTypeLabel(l10n, event.type)} · ${event.animalLabel ?? l10n.unknownAnimal}\n'
+                '${DateFormat.yMMMd(locale).format(event.scheduledDate)}',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(l10n.cancelEventMessage),
+              if (error != null) ...[
+                const SizedBox(height: 8),
+                Text(error, style: TextStyle(color: scheme.error)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('cancel-keep'),
+            onPressed: busy ? null : () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancelEventKeep),
+          ),
+          FilledButton(
+            key: const Key('cancel-confirm'),
+            style: FilledButton.styleFrom(backgroundColor: scheme.error, foregroundColor: scheme.onError),
+            onPressed: busy ? null : () => _confirm(context, viewModel),
+            child: busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(l10n.cancelEventAction),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirm(BuildContext context, UpcomingEventsViewModel viewModel) async {
+    final navigator = Navigator.of(context);
+    if (await viewModel.cancelEvent(event)) navigator.pop(true);
   }
 }

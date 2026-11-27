@@ -66,5 +66,17 @@
   "rescheduleConfirm": "Reprogramar",
   "reschedulePastDate": "La nueva fecha no puede ser anterior a hoy.",
   "rescheduleError": "No se pudo reprogramar el evento.",
-  "cancel": "Cancelar"
+  "cancel": "Cancelar",
+  "registerEventAction": "Registrar evento",
+  "registerEventTitle": "Registrar evento sanitario",
+  "registerEventAnimal": "Animal",
+  "registerEventType": "Tipo de evento",
+  "registerEventDate": "Fecha del evento",
+  "registerEventNotes": "Observaciones (opcional)",
+  "registerEventSubmit": "Registrar",
+  "registerEventRequired": "Campo obligatorio.",
+  "registerEventFutureDate": "La fecha del evento no puede ser posterior a hoy.",
+  "registerEventError": "No se pudo registrar el evento.",
+  "registerEventNoAnimals": "No hay animales registrados.",
+  "registerEventSuccess": "Evento sanitario registrado."
 }

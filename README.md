@@ -55,7 +55,8 @@ lib/
 │   │   ├── data/              # repositorios y acceso a la API
 │   │   ├── domain/            # modelos
 │   │   └── presentation/      # pantallas (Page) y ViewModels (ChangeNotifier)
-│   └── veterinary/            # inicio del flujo veterinario (Clientes, Calendario, Perfil)
+│   ├── livestock/             # animales: lista con búsqueda y filtros por estado, y ficha con su granja
+│   └── veterinary/            # inicio del flujo veterinario (Clientes, Calendario, Animales, Perfil)
 ├── shared/widgets/            # estados de carga, error con reintento y vacío
 └── l10n/                      # textos en español (app_es.arb) e inglés (app_en.arb)
 test/                          # pruebas con la misma estructura de lib/

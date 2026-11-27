@@ -97,7 +97,7 @@ String proximityLabel(AppLocalizations l10n, int daysUntil) {
 }
 
 class UpcomingEventCard extends StatelessWidget {
-  const UpcomingEventCard({super.key, required this.event, required this.onReschedule, this.showCancel = false, this.onCancel});
+  const UpcomingEventCard({super.key, required this.event, required this.onReschedule, this.showCancel = false, this.onCancel, this.showComplete = false, this.onComplete});
 
   final UpcomingEvent event;
 
@@ -109,6 +109,10 @@ class UpcomingEventCard extends StatelessWidget {
 
   /// US-33: abre la confirmacion para cancelar el evento; null mientras hay otra accion en curso.
   final VoidCallback? onCancel;
+
+  /// US-13: la tarjeta ofrece registrar la vacuna como aplicada; [onComplete] es null mientras hay otra accion en curso.
+  final bool showComplete;
+  final VoidCallback? onComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +177,13 @@ class UpcomingEventCard extends StatelessWidget {
                     icon: const Icon(Icons.edit_calendar_outlined, size: 18),
                     label: Text(l10n.rescheduleAction),
                   ),
+                  if (showComplete)
+                    TextButton.icon(
+                      key: const Key('complete-event'),
+                      onPressed: onComplete,
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: Text(l10n.completeEventAction),
+                    ),
                   if (showCancel)
                     TextButton.icon(
                       key: const Key('cancel-event'),
@@ -312,7 +323,7 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
 Future<void> showCancelEventDialog(BuildContext context, UpcomingEventsViewModel viewModel, UpcomingEvent event) async {
   final messenger = ScaffoldMessenger.of(context);
   final successMessage = AppLocalizations.of(context).cancelEventSuccess;
-  viewModel.clearCancelError();
+  viewModel.clearActionError();
   final cancelled = await showDialog<bool>(
     context: context,
     builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: CancelEventDialog(event: event)),
@@ -332,10 +343,11 @@ class CancelEventDialog extends StatelessWidget {
     final viewModel = context.watch<UpcomingEventsViewModel>();
     final busy = viewModel.busy;
     final locale = Localizations.localeOf(context).toLanguageTag();
-    final error = switch (viewModel.cancelError) {
+    final error = switch (viewModel.actionError) {
       null => null,
-      ConnectionCancelError() => l10n.connectionError,
-      ServerCancelError(:final serverMessage) => serverMessage.isEmpty ? l10n.cancelEventError : serverMessage,
+      FutureDateActionError() => l10n.registerEventFutureDate,
+      ConnectionActionError() => l10n.connectionError,
+      ServerActionError(:final serverMessage) => serverMessage.isEmpty ? l10n.cancelEventError : serverMessage,
     };
 
     // Mientras se envia no se puede cerrar tocando fuera: el resultado se perderia.
@@ -384,5 +396,118 @@ class CancelEventDialog extends StatelessWidget {
   Future<void> _confirm(BuildContext context, UpcomingEventsViewModel viewModel) async {
     final navigator = Navigator.of(context);
     if (await viewModel.cancelEvent(event)) navigator.pop(true);
+  }
+}
+
+/// US-13: abre el dialogo para registrar como aplicada una vacuna programada (fecha de aplicacion: hoy por defecto,
+/// nunca futura). Se cierra solo si el backend la acepta; el aviso de exito se muestra en la pantalla de origen.
+Future<void> showCompleteEventDialog(BuildContext context, UpcomingEventsViewModel viewModel, UpcomingEvent event) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final successMessage = AppLocalizations.of(context).completeEventSuccess;
+  viewModel.clearActionError();
+  final completed = await showDialog<bool>(
+    context: context,
+    builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: CompleteEventDialog(event: event)),
+  );
+  if (completed == true) messenger.showSnackBar(SnackBar(content: Text(successMessage)));
+}
+
+class CompleteEventDialog extends StatefulWidget {
+  const CompleteEventDialog({super.key, required this.event});
+
+  final UpcomingEvent event;
+
+  @override
+  State<CompleteEventDialog> createState() => _CompleteEventDialogState();
+}
+
+class _CompleteEventDialogState extends State<CompleteEventDialog> {
+  late DateTime _date;
+
+  DateTime get _today {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _date = _today;
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(_today.year - 5),
+      lastDate: _today, // una aplicacion ya ocurrida no puede ser futura
+    );
+    if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _confirm(UpcomingEventsViewModel viewModel) async {
+    final navigator = Navigator.of(context);
+    if (await viewModel.completeEvent(widget.event, _date)) navigator.pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final viewModel = context.watch<UpcomingEventsViewModel>();
+    final busy = viewModel.busy;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final error = switch (viewModel.actionError) {
+      null => null,
+      FutureDateActionError() => l10n.registerEventFutureDate,
+      ConnectionActionError() => l10n.connectionError,
+      ServerActionError(:final serverMessage) => serverMessage.isEmpty ? l10n.completeEventError : serverMessage,
+    };
+
+    return PopScope(
+      canPop: !busy,
+      child: AlertDialog(
+        title: Text(l10n.completeEventTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '${sanitaryTypeLabel(l10n, widget.event.type)} · ${widget.event.animalLabel ?? l10n.unknownAnimal}\n'
+                '${DateFormat.yMMMd(locale).format(widget.event.scheduledDate)}',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 12),
+              Text(l10n.completeEventDate, style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 4),
+              OutlinedButton.icon(
+                key: const Key('complete-date'),
+                onPressed: busy ? null : _pickDate,
+                icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                label: Text(DateFormat.yMMMMd(locale).format(_date)),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 8),
+                Text(error, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('complete-cancel'),
+            onPressed: busy ? null : () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            key: const Key('complete-confirm'),
+            onPressed: busy ? null : () => _confirm(viewModel),
+            child: busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(l10n.registerEventSubmit),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -48,10 +48,40 @@ class FakeBackend {
   final cancelRequests = <http.Request>[];
   Future<http.Response>? Function(http.Request)? cancelHandler;
 
+  // US-13: programar una vacuna crea un evento SCHEDULED; marcarla como aplicada lo saca de lo pendiente (COMPLETED).
+  final completed = <String>{};
+  final scheduleRequests = <http.Request>[];
+  final completeRequests = <http.Request>[];
+  Future<http.Response>? Function(http.Request)? scheduleHandler;
+  Future<http.Response>? Function(http.Request)? completeHandler;
+
   List<String> get requestedMonths => calendarRequests.map((r) => '${r.url.queryParameters['year']}-${r.url.queryParameters['month']}').toList();
 
   Future<http.Response> handle(http.Request request) async {
     final path = request.url.path;
+    if (request.method == 'POST' && path.endsWith('/sanitary-events/scheduled')) {
+      scheduleRequests.add(request);
+      final override = scheduleHandler?.call(request);
+      if (override != null) return override;
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final id = 's${scheduleRequests.length}';
+      events.add({
+        'id': id,
+        'animalId': path.split('/').reversed.elementAt(2),
+        'type': body['type'],
+        'scheduledDate': body['scheduledDate'],
+        'description': body['description'],
+      });
+      return http.Response('{"id":"$id","status":"SCHEDULED"}', 201);
+    }
+    if (path.endsWith('/complete')) {
+      completeRequests.add(request);
+      final override = completeHandler?.call(request);
+      if (override != null) return override;
+      final id = path.split('/').reversed.elementAt(1);
+      completed.add(id);
+      return http.Response('{"id":"$id","status":"COMPLETED"}', 200);
+    }
     if (path.endsWith('/cancel')) {
       cancelRequests.add(request);
       final override = cancelHandler?.call(request);
@@ -71,7 +101,7 @@ class FakeBackend {
                   {
                     'id': e['id'],
                     'type': e['type'],
-                    'status': cancelled.contains(e['id']) ? 'CANCELLED' : 'SCHEDULED',
+                    'status': cancelled.contains(e['id']) ? 'CANCELLED' : completed.contains(e['id']) ? 'COMPLETED' : 'SCHEDULED',
                     'occurredAt': null,
                     'scheduledDate': e['scheduledDate'],
                     'description': e['description'],
@@ -95,7 +125,7 @@ class FakeBackend {
       final prefix = '$year-${month.toString().padLeft(2, '0')}';
       final inMonth = [
         for (final e in events)
-          if ((e['scheduledDate'] as String).startsWith(prefix) && !cancelled.contains(e['id'])) {...e, 'status': 'SCHEDULED'},
+          if ((e['scheduledDate'] as String).startsWith(prefix) && !cancelled.contains(e['id']) && !completed.contains(e['id'])) {...e, 'status': 'SCHEDULED'},
       ]..sort((a, b) => (a['scheduledDate'] as String).compareTo(b['scheduledDate'] as String));
       return http.Response(
           jsonEncode({
@@ -111,7 +141,7 @@ class FakeBackend {
       final limit = DateTime(2026, 12, 3);
       final due = [
         for (final e in events)
-          if (!DateTime.parse(e['scheduledDate'] as String).isAfter(limit) && !cancelled.contains(e['id']))
+          if (!DateTime.parse(e['scheduledDate'] as String).isAfter(limit) && !cancelled.contains(e['id']) && !completed.contains(e['id']))
             {
               ...e,
               'daysUntil': DateTime.parse(e['scheduledDate'] as String).difference(DateTime(2026, 11, 26)).inDays,

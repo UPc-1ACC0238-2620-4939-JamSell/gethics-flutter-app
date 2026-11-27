@@ -61,6 +61,8 @@ class SanitaryCalendarPage extends StatelessWidget {
           onReschedule: _rescheduleAction(context, upcoming, event),
           showCancel: true,
           onCancel: _cancelAction(context, upcoming, event),
+          showComplete: event.type == SanitaryEventType.vaccination, // el backend solo cubre vacunas (US-13)
+          onComplete: _completeAction(context, upcoming, event),
         ),
         const SizedBox(height: 12),
       ],
@@ -69,6 +71,9 @@ class SanitaryCalendarPage extends StatelessWidget {
 
   VoidCallback? _rescheduleAction(BuildContext context, UpcomingEventsViewModel upcoming, UpcomingEvent event) =>
       upcoming.busy ? null : () => showRescheduleDialog(context, upcoming, event);
+
+  VoidCallback? _completeAction(BuildContext context, UpcomingEventsViewModel upcoming, UpcomingEvent event) =>
+      upcoming.busy ? null : () => showCompleteEventDialog(context, upcoming, event);
 
   VoidCallback? _cancelAction(BuildContext context, UpcomingEventsViewModel upcoming, UpcomingEvent event) =>
       upcoming.busy ? null : () => showCancelEventDialog(context, upcoming, event);
@@ -115,6 +120,8 @@ class SanitaryCalendarPage extends StatelessWidget {
           onReschedule: _rescheduleAction(context, upcoming, event),
           showCancel: true,
           onCancel: _cancelAction(context, upcoming, event),
+          showComplete: event.type == SanitaryEventType.vaccination, // el backend solo cubre vacunas (US-13)
+          onComplete: _completeAction(context, upcoming, event),
         ))
         ..add(const SizedBox(height: 12));
     }

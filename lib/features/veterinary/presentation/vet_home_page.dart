@@ -76,6 +76,16 @@ class _VetHomePageState extends State<VetHomePage> {
     }
   }
 
+  // US-13: programa una vacuna; el evento nuevo aparece en el calendario y en las alertas, asi que se recargan.
+  Future<void> _scheduleVaccination() async {
+    final saved = await Navigator.of(context).push(scheduleVaccinationRoute(context.read<AppDependencies>().sanitaryRepository));
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).scheduleVaccinationSuccess)));
+      _upcoming.load();
+      _calendar.load();
+    }
+  }
+
   // US-14: historial clinico; sin detalle de animal todavia, la pantalla deja elegir el animal.
   void _openHistory() => Navigator.of(context).push(clinicalHistoryRoute(context.read<AppDependencies>().sanitaryRepository));
 
@@ -105,7 +115,15 @@ class _VetHomePageState extends State<VetHomePage> {
       appBar: AppBar(
         title: Text(titles[_tab]),
         actions: [
-          if (_tab == 1) IconButton(onPressed: _openHistory, icon: const Icon(Icons.history), tooltip: l10n.historyAction),
+          if (_tab == 1) ...[
+            IconButton(
+              key: const Key('schedule-vaccination'),
+              onPressed: _scheduleVaccination,
+              icon: const Icon(Icons.vaccines_outlined),
+              tooltip: l10n.scheduleVaccinationTitle,
+            ),
+            IconButton(onPressed: _openHistory, icon: const Icon(Icons.history), tooltip: l10n.historyAction),
+          ],
         ],
       ),
       body: body,

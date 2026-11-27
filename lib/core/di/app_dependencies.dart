@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/iam/data/auth_repository.dart';
+import '../../features/livestock/data/livestock_repository.dart';
 import '../../features/sanitary/data/sanitary_repository.dart';
 import '../network/api_client.dart';
 import '../session/session_storage.dart';
@@ -11,12 +12,14 @@ import '../session/session_storage.dart';
 class AppDependencies {
   AppDependencies({required this.session, required this.api})
       : authRepository = AuthRepository(api, session),
-        sanitaryRepository = SanitaryRepository(api);
+        sanitaryRepository = SanitaryRepository(api),
+        livestockRepository = LivestockRepository(api);
 
   final SessionStorage session;
   final ApiClient api;
   final AuthRepository authRepository;
   final SanitaryRepository sanitaryRepository;
+  final LivestockRepository livestockRepository;
 
   static Future<AppDependencies> create({http.Client? client}) async {
     final session = SessionStorage(await SharedPreferences.getInstance());

@@ -618,7 +618,7 @@ void main() {
       expect(find.text('Register event'), findsOneWidget);
       expect(find.byIcon(Icons.history), findsOneWidget);
       expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.descendant(of: find.byType(NavigationBar), matching: find.byType(NavigationDestination)), findsNWidgets(3));
+      expect(find.descendant(of: find.byType(NavigationBar), matching: find.byType(NavigationDestination)), findsNWidgets(4));
     });
   });
 }

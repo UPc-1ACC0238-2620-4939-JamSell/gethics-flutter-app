@@ -6,7 +6,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../sanitary/presentation/clinical_history_page.dart';
 import '../../sanitary/presentation/register_event_page.dart';
-import '../../sanitary/presentation/upcoming_events_page.dart';
+import '../../sanitary/presentation/sanitary_calendar_page.dart';
+import '../../sanitary/presentation/sanitary_calendar_view_model.dart';
 import '../../sanitary/presentation/upcoming_events_view_model.dart';
 
 /// Inicio del flujo veterinario: navegacion inferior con Clientes, Calendario y Perfil. Las pestanas sin historia
@@ -24,19 +25,24 @@ class VetHomePage extends StatefulWidget {
 class _VetHomePageState extends State<VetHomePage> {
   int _tab = 0;
 
-  // US-46: se crea una vez para conservar la lista al cambiar de pestana; carga al abrir la pestana Calendario.
+  // US-46 y US-12: se crean una vez para conservar los datos al cambiar de pestana; cargan al abrir Calendario.
   late final UpcomingEventsViewModel _upcoming;
+  late final SanitaryCalendarViewModel _calendar;
   bool _upcomingLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _upcoming = UpcomingEventsViewModel(context.read<AppDependencies>().sanitaryRepository);
+    final repository = context.read<AppDependencies>().sanitaryRepository;
+    _calendar = SanitaryCalendarViewModel(repository);
+    // Reprogramar mueve el evento de mes: el calendario mensual se recarga junto con las alertas.
+    _upcoming = UpcomingEventsViewModel(repository, onRescheduled: _calendar.load);
   }
 
   @override
   void dispose() {
     _upcoming.dispose();
+    _calendar.dispose();
     super.dispose();
   }
 
@@ -45,6 +51,7 @@ class _VetHomePageState extends State<VetHomePage> {
     if (index == 1 && !_upcomingLoaded) {
       _upcomingLoaded = true;
       _upcoming.load();
+      _calendar.load();
     }
   }
 
@@ -62,9 +69,15 @@ class _VetHomePageState extends State<VetHomePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final titles = [l10n.navClients, l10n.upcomingTitle, l10n.navProfile];
+    final titles = [l10n.navClients, l10n.navCalendar, l10n.navProfile];
     final body = switch (_tab) {
-      1 => ChangeNotifierProvider.value(value: _upcoming, child: const UpcomingEventsPage()),
+      1 => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: _upcoming),
+            ChangeNotifierProvider.value(value: _calendar),
+          ],
+          child: const SanitaryCalendarPage(),
+        ),
       2 => _ProfileTab(userName: widget.userName, onSignOut: widget.onSignOut),
       _ => EmptyView(message: l10n.comingSoon),
     };

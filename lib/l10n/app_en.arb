@@ -58,5 +58,8 @@
   "historyNoDate": "No date recorded",
   "historyStatusScheduled": "Scheduled",
   "historyStatusCompleted": "Completed",
-  "historyStatusCancelled": "Cancelled"
+  "historyStatusCancelled": "Cancelled",
+  "calendarPreviousMonth": "Previous month",
+  "calendarNextMonth": "Next month",
+  "calendarMonthEmpty": "No pending activities this month."
 }

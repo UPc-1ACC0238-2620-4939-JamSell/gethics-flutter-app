@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/di/app_dependencies.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../sanitary/presentation/register_event_page.dart';
 import '../../sanitary/presentation/upcoming_events_page.dart';
 import '../../sanitary/presentation/upcoming_events_view_model.dart';
 
@@ -46,6 +47,14 @@ class _VetHomePageState extends State<VetHomePage> {
     }
   }
 
+  // US-11: formulario de registro; sin detalle de animal todavia, el formulario deja elegir el animal.
+  Future<void> _registerEvent() async {
+    final saved = await Navigator.of(context).push(registerEventRoute(context.read<AppDependencies>().sanitaryRepository));
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).registerEventSuccess)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -58,6 +67,13 @@ class _VetHomePageState extends State<VetHomePage> {
     return Scaffold(
       appBar: AppBar(title: Text(titles[_tab])),
       body: body,
+      floatingActionButton: _tab == 1
+          ? FloatingActionButton.extended(
+              onPressed: _registerEvent,
+              icon: const Icon(Icons.add),
+              label: Text(l10n.registerEventAction),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: _selectTab,

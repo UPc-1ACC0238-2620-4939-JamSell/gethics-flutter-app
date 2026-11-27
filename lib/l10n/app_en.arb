@@ -38,5 +38,17 @@
   "rescheduleConfirm": "Reschedule",
   "reschedulePastDate": "The new date can't be earlier than today.",
   "rescheduleError": "The event could not be rescheduled.",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "registerEventAction": "Register event",
+  "registerEventTitle": "Register sanitary event",
+  "registerEventAnimal": "Animal",
+  "registerEventType": "Event type",
+  "registerEventDate": "Event date",
+  "registerEventNotes": "Notes (optional)",
+  "registerEventSubmit": "Register",
+  "registerEventRequired": "Required field.",
+  "registerEventFutureDate": "The event date can't be later than today.",
+  "registerEventError": "The event could not be registered.",
+  "registerEventNoAnimals": "No animals registered.",
+  "registerEventSuccess": "Sanitary event registered."
 }

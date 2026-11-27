@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/di/app_dependencies.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../sanitary/presentation/clinical_history_page.dart';
 import '../../sanitary/presentation/register_event_page.dart';
 import '../../sanitary/presentation/upcoming_events_page.dart';
 import '../../sanitary/presentation/upcoming_events_view_model.dart';
@@ -55,6 +56,9 @@ class _VetHomePageState extends State<VetHomePage> {
     }
   }
 
+  // US-14: historial clinico; sin detalle de animal todavia, la pantalla deja elegir el animal.
+  void _openHistory() => Navigator.of(context).push(clinicalHistoryRoute(context.read<AppDependencies>().sanitaryRepository));
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -65,7 +69,12 @@ class _VetHomePageState extends State<VetHomePage> {
       _ => EmptyView(message: l10n.comingSoon),
     };
     return Scaffold(
-      appBar: AppBar(title: Text(titles[_tab])),
+      appBar: AppBar(
+        title: Text(titles[_tab]),
+        actions: [
+          if (_tab == 1) IconButton(onPressed: _openHistory, icon: const Icon(Icons.history), tooltip: l10n.historyAction),
+        ],
+      ),
       body: body,
       floatingActionButton: _tab == 1
           ? FloatingActionButton.extended(

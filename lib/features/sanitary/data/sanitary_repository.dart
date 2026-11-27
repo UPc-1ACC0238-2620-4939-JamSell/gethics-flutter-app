@@ -2,6 +2,7 @@ import '../../../core/common/result.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../domain/animal_option.dart';
+import '../domain/clinical_history.dart';
 import '../domain/upcoming_event.dart';
 
 /// Acceso a los Web Services del contexto sanitary.
@@ -78,6 +79,34 @@ class SanitaryRepository {
     } on ApiException catch (e) {
       return Failure(e.message, isConnectionError: e.isConnectionError);
     }
+  }
+
+  /// US-14: historial clinico del animal (todos sus eventos, tambien programados y cancelados), en el orden del
+  /// backend. Un animal sin eventos responde 200 con la lista vacia; un animalId invalido, 400.
+  Future<Result<ClinicalHistory>> getClinicalHistory(String animalId) async {
+    try {
+      final json = await _api.get('api/v1/animals/$animalId/clinical-history') as Map<String, dynamic>;
+      final items = ((json['events'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+      return Success(ClinicalHistory(
+        animalId: json['animalId'] as String? ?? animalId,
+        events: items.map(_toHistoryEvent).toList(),
+        message: json['message'] as String? ?? '',
+      ));
+    } on ApiException catch (e) {
+      return Failure(e.message, isConnectionError: e.isConnectionError);
+    }
+  }
+
+  static ClinicalHistoryEvent _toHistoryEvent(Map<String, dynamic> json) {
+    final description = (json['description'] as String?)?.trim();
+    return ClinicalHistoryEvent(
+      id: json['id'] as String,
+      type: SanitaryEventType.fromName(json['type'] as String?),
+      status: SanitaryEventStatus.fromName(json['status'] as String?),
+      occurredAt: DateTime.tryParse(json['occurredAt'] as String? ?? ''),
+      scheduledDate: DateTime.tryParse(json['scheduledDate'] as String? ?? ''),
+      description: description == null || description.isEmpty ? null : description,
+    );
   }
 
   static String _isoDate(DateTime date) =>

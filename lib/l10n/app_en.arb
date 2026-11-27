@@ -50,5 +50,13 @@
   "registerEventFutureDate": "The event date can't be later than today.",
   "registerEventError": "The event could not be registered.",
   "registerEventNoAnimals": "No animals registered.",
-  "registerEventSuccess": "Sanitary event registered."
+  "registerEventSuccess": "Sanitary event registered.",
+  "historyTitle": "Clinical history",
+  "historyAction": "View clinical history",
+  "historySelectAnimal": "Select an animal to see its history.",
+  "historyEmpty": "No records.",
+  "historyNoDate": "No date recorded",
+  "historyStatusScheduled": "Scheduled",
+  "historyStatusCompleted": "Completed",
+  "historyStatusCancelled": "Cancelled"
 }
